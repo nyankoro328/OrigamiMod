@@ -111,6 +111,26 @@ configurations {
 }
 
 dependencies {
+    // Oriedita folding core
+    implementation files('libs/origami-1.1.4-SNAPSHOT.jar')
+
+
+
+// .cp file parser used by Oriedita
+    jarJar(implementation('io.github.oriedita:fold:1.1.0')) {
+        version {
+            strictly '[1.1.0]'
+            prefer '1.1.0'
+        }
+    }
+
+// Oriedita logging API
+    jarJar(implementation('org.tinylog:tinylog-api:2.3.2')) {
+        version {
+            strictly '[2.3.2]'
+            prefer '2.3.2'
+        }
+    }
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"
@@ -165,6 +185,7 @@ publishing {
         }
     }
     repositories {
+        mavenCentral()
         maven {
             url "file://${project.projectDir}/repo"
         }
