@@ -1,0 +1,13 @@
+{
+  "itemGroup.origamimod": "Example Mod Tab",
+  "block.origamimod.example_block": "Example Block",
+  "item.origamimod.example_item": "Example Item",
+
+  "origamimod.configuration.title": "Origami Mod Configs",
+  "origamimod.configuration.section.origamimod.common.toml": "Origami Mod Configs",
+  "origamimod.configuration.section.origamimod.common.toml.title": "Origami Mod Configs",
+  "origamimod.configuration.items": "Item List",
+  "origamimod.configuration.logDirtBlock": "Log Dirt Block",
+  "origamimod.configuration.magicNumberIntroduction": "Magic Number Text",
+  "origamimod.configuration.magicNumber": "Magic Number"
+}
