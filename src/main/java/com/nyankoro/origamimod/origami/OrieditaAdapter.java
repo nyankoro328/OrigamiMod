@@ -4,7 +4,7 @@ import origami.crease_pattern.FoldingException;
 import origami.crease_pattern.LineSegmentSet;
 import origami.crease_pattern.PointSet;
 import origami.folding.FoldedFigure;
-import origami.folding.util.SortingBox;
+import origami.folding.element.SubFace;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,55 +19,84 @@ public final class OrieditaAdapter {
     public static OrigamiFoldResult fold(InputStream cpInput)
             throws IOException, InterruptedException, FoldingException {
 
-        // .cp → Orieditaの線分集合
         LineSegmentSet lineSegmentSet =
                 CpLoader.load(cpInput);
 
-        // 折り畳みエンジン
         FoldedFigure foldedFigure =
                 new FoldedFigure(new NoOpBulletinBoard());
 
         foldedFigure.estimationOrder =
                 FoldedFigure.EstimationOrder.ORDER_5;
 
-        // Orieditaのテストと同じく基準Faceは1
         foldedFigure.folding_estimated(
                 lineSegmentSet,
                 1
         );
 
-        // 元Faceを維持した折り畳み後PointSet
-        PointSet folded =
+        /*
+         * 重要：
+         * 元Faceではなく、折り畳み後に細分割された
+         * SubFaceのPointSetを使用する。
+         */
+        PointSet subdivided =
                 foldedFigure
-                        .wireFrameWorker_foldedNotSubdivided
+                        .wireFrameWorker_foldedSubdivided
                         .get();
 
-        // 下→上の描画順
-        SortingBox<Integer> renderOrder =
+        SubFace[] subFaces =
                 foldedFigure
                         .foldedFigure_worker
-                        .rating2();
+                        .s0;
 
-        List<OrigamiFace> faces = new ArrayList<>();
+        List<OrigamiFace> visibleRegions =
+                new ArrayList<>();
 
-        for (int orderIndex = 1;
-             orderIndex <= renderOrder.getTotal();
-             orderIndex++) {
+        int regionCount =
+                subdivided.getNumFaces();
 
-            int faceId =
-                    renderOrder.getValue(orderIndex);
+        for (int regionId = 1;
+             regionId <= regionCount;
+             regionId++) {
 
-            // 奇数なら表、偶数なら裏
+            SubFace subFace =
+                    subFaces[regionId];
+
+            // 紙が存在しない領域は描画しない
+            if (subFace == null
+                    || subFace.getFaceIdCount() == 0) {
+                continue;
+            }
+
+            /*
+             * このSubFaceでの上下関係を計算する。
+             */
+            subFace.set_FaceId2fromTop_counted_position(
+                    foldedFigure
+                            .foldedFigure_worker
+                            .hierarchyList
+            );
+
+            /*
+             * 通常の正面表示なので、
+             * 上から1番目の元Faceを取得する。
+             */
+            int topFaceId =
+                    subFace.fromTop_count_FaceId(1);
+
             int facePosition =
                     foldedFigure
                             .wireFrameWorker_flatCp
-                            .getIFacePosition(faceId);
+                            .getIFacePosition(topFaceId);
 
             boolean frontSideUp =
                     (facePosition % 2) == 1;
 
             int vertexCount =
-                    folded.getPointsCount(faceId);
+                    subdivided.getPointsCount(regionId);
+
+            if (vertexCount < 3) {
+                continue;
+            }
 
             List<OrigamiVertex> vertices =
                     new ArrayList<>();
@@ -77,29 +106,37 @@ public final class OrieditaAdapter {
                  vertexIndex++) {
 
                 int pointId =
-                        folded.getPointId(
-                                faceId,
+                        subdivided.getPointId(
+                                regionId,
                                 vertexIndex
                         );
 
                 vertices.add(
                         new OrigamiVertex(
-                                folded.getPointX(pointId),
-                                folded.getPointY(pointId)
+                                subdivided.getPointX(pointId),
+                                subdivided.getPointY(pointId)
                         )
                 );
             }
 
-            faces.add(
+            /*
+             * faceIdには、この領域で実際に見えている
+             * 元FaceのIDを格納。
+             *
+             * renderOrderは今回使わないため0。
+             */
+            visibleRegions.add(
                     new OrigamiFace(
-                            faceId,
+                            topFaceId,
                             vertices,
                             frontSideUp,
-                            orderIndex
+                            0
                     )
             );
         }
 
-        return new OrigamiFoldResult(faces);
+        return new OrigamiFoldResult(
+                visibleRegions
+        );
     }
 }

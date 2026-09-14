@@ -28,9 +28,6 @@ public final class OrigamiWorldRenderer {
     // Oriedita座標 → Minecraftブロック単位
     private static final double SCALE = 0.006;
 
-    // 面同士のZ-fightingを防ぐための微小な高さ
-    private static final double LAYER_STEP = 0.0008;
-
     private static OrigamiFoldResult foldResult;
 
     // 最初に決めた表示位置
@@ -112,48 +109,74 @@ public final class OrigamiWorldRenderer {
 
             poseStack.pushPose();
 
-            // 描画順に応じて非常にわずかに上へずらす
-            poseStack.translate(
-                    0.0,
-                    face.renderOrder() * LAYER_STEP,
-                    0.0
-            );
-
             // 確認しやすいように表裏で色を変更
             int color = face.frontSideUp()
                     ? 0xFFFFC857
                     : 0xFF4EA5D9;
 
-            event.getSubmitNodeCollector()
-                    .submitCustomGeometry(
-                            poseStack,
-                            RenderTypes.debugTriangleFan(),
-                            (pose, consumer) -> {
+            try {
+                for (PolygonTriangulator.Triangle triangle
+                        : PolygonTriangulator.triangulate(
+                        face.vertices()
+                )) {
 
-                                for (OrigamiVertex vertex
-                                        : face.vertices()) {
+                    event.getSubmitNodeCollector()
+                            .submitCustomGeometry(
+                                    poseStack,
+                                    RenderTypes.debugTriangleFan(),
+                                    (pose, consumer) -> {
 
-                                    consumer.addVertex(
-                                                    pose,
-                                                    (float) (
-                                                            vertex.x()
-                                                                    * SCALE
-                                                    ),
-                                                    0.0F,
-                                                    (float) (
-                                                            vertex.y()
-                                                                    * SCALE
-                                                    )
-                                            )
-                                            .setColor(color);
-                                }
-                            }
-                    );
+                                        addVertex(
+                                                consumer,
+                                                pose,
+                                                triangle.a(),
+                                                color
+                                        );
+
+                                        addVertex(
+                                                consumer,
+                                                pose,
+                                                triangle.b(),
+                                                color
+                                        );
+
+                                        addVertex(
+                                                consumer,
+                                                pose,
+                                                triangle.c(),
+                                                color
+                                        );
+                                    }
+                            );
+                }
+
+            } catch (IllegalArgumentException e) {
+
+                OrigamiMod.LOGGER.warn(
+                        "Could not triangulate origami face {}",
+                        face.faceId()
+                );
+            }
 
             poseStack.popPose();
         }
 
         poseStack.popPose();
+    }
+
+    private static void addVertex(
+            com.mojang.blaze3d.vertex.VertexConsumer consumer,
+            com.mojang.blaze3d.vertex.PoseStack.Pose pose,
+            OrigamiVertex vertex,
+            int color
+    ) {
+        consumer.addVertex(
+                        pose,
+                        (float) (vertex.x() * SCALE),
+                        0.0F,
+                        (float) (-vertex.y() * SCALE)
+                )
+                .setColor(color);
     }
 
     private static void loadFoldResult() {
@@ -175,6 +198,27 @@ public final class OrigamiWorldRenderer {
 
             foldResult =
                     OrieditaAdapter.fold(input);
+            try {
+                var svgPath =
+                        com.nyankoro.origamimod.origami
+                                .OrigamiDebugSvgExporter.export(
+                                        foldResult,
+                                        java.nio.file.Path.of(
+                                                "origami-debug.svg"
+                                        )
+                                );
+
+                OrigamiMod.LOGGER.info(
+                        "Origami debug SVG written to {}",
+                        svgPath
+                );
+
+            } catch (Exception e) {
+                OrigamiMod.LOGGER.error(
+                        "Failed to export origami debug SVG",
+                        e
+                );
+            }
 
             OrigamiMod.LOGGER.info(
                     "Origami render data loaded. Faces={}",
