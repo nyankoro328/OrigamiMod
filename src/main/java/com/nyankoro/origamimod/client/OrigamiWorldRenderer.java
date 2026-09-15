@@ -21,6 +21,11 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.Objects;
 
+import com.nyankoro.origamimod.origami.OrigamiTransform;
+
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
 @EventBusSubscriber(
         value = Dist.CLIENT,
         modid = OrigamiMod.MODID
@@ -35,12 +40,27 @@ public final class OrigamiWorldRenderer {
      */
     private static final double SCALE = 0.006;
 
-    private static final double DEBUG_HEIGHT_OFFSET = 2.0;
-
     private static final double EDGE_WIDTH = 0.010;
     private static final float EDGE_OFFSET = 0.002F;
     private static final int EDGE_COLOR = 0xFF202020;
 
+    /*
+     * 現在表示しているデバッグ用折り紙のTransform。
+     *
+     * 後でアイテム・設置物・装備側のデータへ移す。
+     */
+    private static final OrigamiTransform DEBUG_TRANSFORM =
+            new OrigamiTransform(
+                    0.0,
+                    2.0,
+                    0.0,
+
+                    45.0F,
+                    20.0F,
+                    15.0F,
+
+                    1.0F
+            );
     /*
      * Orieditaによる折り畳み結果。
      */
@@ -89,7 +109,7 @@ public final class OrigamiWorldRenderer {
         /*
          * 初回のみMinecraft内の表示位置を決める。
          */
-        if (anchor == null) {
+        if (null == anchor) {
 
             Vec3 look =
                     minecraft.player.getLookAngle();
@@ -137,7 +157,7 @@ public final class OrigamiWorldRenderer {
                     new Vec3(
                             forwardPosition.x,
                             minecraft.player.getY()
-                                    + DEBUG_HEIGHT_OFFSET,
+                                    + 0.03,
                             forwardPosition.z
                     );
 
@@ -147,9 +167,6 @@ public final class OrigamiWorldRenderer {
             );
         }
 
-        /*
-         * Minecraftのカメラ位置。
-         */
         Vec3 camera =
                 event
                         .getLevelRenderState()
@@ -159,44 +176,74 @@ public final class OrigamiWorldRenderer {
         PoseStack poseStack =
                 event.getPoseStack();
 
-        poseStack.pushPose();
-
         /*
-         * ワールド座標から
-         * カメラ相対座標へ変換する。
+         * Transformを反映した実際のワールド位置。
          */
-        poseStack.translate(
-                anchor.x - camera.x,
-                anchor.y - camera.y,
-                anchor.z - camera.z
-        );
+        Vec3 objectPosition =
+                anchor.add(
+                        DEBUG_TRANSFORM.translationX(),
+                        DEBUG_TRANSFORM.translationY(),
+                        DEBUG_TRANSFORM.translationZ()
+                );
 
         /*
-         * Orieditaから取得した可視面を
-         * 1面ずつMinecraftへ描画する。
+         * XYZ回転。
          */
+        Quaternionf rotation =
+                createRotation(
+                        DEBUG_TRANSFORM
+                );
 
         /*
-         * カメラが紙の上側にいる場合は正面、
-         * 下側にいる場合は裏面を描画する。
+         * 表裏判定。
          */
         boolean rearView =
-                camera.y < anchor.y;
+                isRearView(
+                        camera,
+                        objectPosition,
+                        rotation
+                );
 
         OrigamiFoldResult visibleResult =
                 rearView
                         ? backFoldResult
                         : frontFoldResult;
 
-        /*
-         * 境界線は、現在カメラがいる側へ
-         * わずかに浮かせてZ-fightingを防ぐ。
-         */
         float edgeOffset =
                 rearView
                         ? -EDGE_OFFSET
                         : EDGE_OFFSET;
 
+        poseStack.pushPose();
+
+        /*
+         * ワールド座標 → カメラ相対座標。
+         */
+        poseStack.translate(
+                objectPosition.x - camera.x,
+                objectPosition.y - camera.y,
+                objectPosition.z - camera.z
+        );
+
+        /*
+         * XYZ回転。
+         */
+        poseStack.mulPose(
+                rotation
+        );
+
+        /*
+         * 大きさ。
+         */
+        poseStack.scale(
+                DEBUG_TRANSFORM.scale(),
+                DEBUG_TRANSFORM.scale(),
+                DEBUG_TRANSFORM.scale()
+        );
+
+        /*
+         * 折り紙を描画。
+         */
         renderFoldResult(
                 event,
                 poseStack,
@@ -609,5 +656,79 @@ public final class OrigamiWorldRenderer {
                                     );
                         }
                 );
+    }
+
+    private static Quaternionf createRotation(
+            OrigamiTransform transform
+    ) {
+
+        float x =
+                (float) Math.toRadians(
+                        transform.rotationX()
+                );
+
+        float y =
+                (float) Math.toRadians(
+                        transform.rotationY()
+                );
+
+        float z =
+                (float) Math.toRadians(
+                        transform.rotationZ()
+                );
+
+        return new Quaternionf()
+                .rotationXYZ(
+                        x,
+                        y,
+                        z
+                );
+    }
+
+    private static boolean isRearView(
+            Vec3 camera,
+            Vec3 objectPosition,
+            Quaternionf rotation
+    ) {
+
+        /*
+         * 折り紙中心 → カメラ
+         */
+        Vector3f cameraDirection =
+                new Vector3f(
+                        (float) (
+                                camera.x
+                                        - objectPosition.x
+                        ),
+                        (float) (
+                                camera.y
+                                        - objectPosition.y
+                        ),
+                        (float) (
+                                camera.z
+                                        - objectPosition.z
+                        )
+                );
+
+        /*
+         * ワールド座標のカメラ方向を、
+         * 折り紙のローカル座標系へ戻す。
+         */
+        Quaternionf inverseRotation =
+                new Quaternionf(
+                        rotation
+                ).conjugate();
+
+        inverseRotation.transform(
+                cameraDirection
+        );
+
+        /*
+         * 折り紙はローカルXZ平面。
+         *
+         * +Y = FRONT
+         * -Y = BACK
+         */
+        return cameraDirection.y < 0.0F;
     }
 }
