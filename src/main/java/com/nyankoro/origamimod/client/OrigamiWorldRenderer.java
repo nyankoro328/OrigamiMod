@@ -49,18 +49,21 @@ public final class OrigamiWorldRenderer {
      *
      * 後でアイテム・設置物・装備側のデータへ移す。
      */
-    private static final OrigamiTransform DEBUG_TRANSFORM =
+    private static final OrigamiTransform DEFAULT_TRANSFORM =
             new OrigamiTransform(
                     0.0,
                     2.0,
                     0.0,
 
-                    45.0F,
-                    20.0F,
-                    15.0F,
+                    0.0F,
+                    0.0F,
+                    0.0F,
 
                     1.0F
             );
+
+    private static OrigamiTransform currentTransform =
+            DEFAULT_TRANSFORM;
     /*
      * Orieditaによる折り畳み結果。
      */
@@ -81,6 +84,87 @@ public final class OrigamiWorldRenderer {
     private static boolean loadAttempted = false;
 
     private OrigamiWorldRenderer() {
+    }
+
+    /*
+     * 折り紙設定画面で使用する
+     * ワールド内プレビューを開始する。
+     */
+    public static void beginEditorPreview(
+            OrigamiFoldResult front,
+            OrigamiFoldResult back,
+            OrigamiTransform transform
+    ) {
+
+        frontFoldResult =
+                Objects.requireNonNull(
+                        front
+                );
+
+        backFoldResult =
+                Objects.requireNonNull(
+                        back
+                );
+
+        currentTransform =
+                Objects.requireNonNull(
+                        transform
+                );
+
+        /*
+         * 次のフレームでプレイヤー前方へ
+         * 新しく配置し直す。
+         */
+        anchor =
+                null;
+
+        /*
+         * 固定birdbase.cpで
+         * 上書きされないようにする。
+         */
+        loadAttempted =
+                true;
+    }
+
+    /*
+     * 設定画面のボタン操作から
+     * Transformだけ更新する。
+     */
+    public static void setEditorTransform(
+            OrigamiTransform transform
+    ) {
+
+        currentTransform =
+                Objects.requireNonNull(
+                        transform
+                );
+    }
+
+    public static OrigamiTransform getEditorTransform() {
+
+        return currentTransform;
+    }
+
+    /*
+     * 設定画面を抜けたときに
+     * プレビュー状態を解除する。
+     */
+    public static void clearEditorPreview() {
+
+        frontFoldResult =
+                null;
+
+        backFoldResult =
+                null;
+
+        currentTransform =
+                DEFAULT_TRANSFORM;
+
+        anchor =
+                null;
+
+        loadAttempted =
+                false;
     }
 
     @SubscribeEvent
@@ -181,9 +265,9 @@ public final class OrigamiWorldRenderer {
          */
         Vec3 objectPosition =
                 anchor.add(
-                        DEBUG_TRANSFORM.translationX(),
-                        DEBUG_TRANSFORM.translationY(),
-                        DEBUG_TRANSFORM.translationZ()
+                        currentTransform.translationX(),
+                        currentTransform.translationY(),
+                        currentTransform.translationZ()
                 );
 
         /*
@@ -191,7 +275,7 @@ public final class OrigamiWorldRenderer {
          */
         Quaternionf rotation =
                 createRotation(
-                        DEBUG_TRANSFORM
+                        currentTransform
                 );
 
         /*
@@ -236,9 +320,9 @@ public final class OrigamiWorldRenderer {
          * 大きさ。
          */
         poseStack.scale(
-                DEBUG_TRANSFORM.scale(),
-                DEBUG_TRANSFORM.scale(),
-                DEBUG_TRANSFORM.scale()
+                currentTransform.scale(),
+                currentTransform.scale(),
+                currentTransform.scale()
         );
 
         /*
