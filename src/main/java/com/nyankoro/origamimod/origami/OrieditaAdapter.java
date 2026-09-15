@@ -396,9 +396,22 @@ public final class OrieditaAdapter {
             );
         }
 
+        // =========================================================
+// Stage 5
+// Oriedita本家と同じ条件で可視境界線を抽出
+// =========================================================
+
+        List<OrigamiEdge> visibleEdges =
+                collectVisibleEdges(
+                        subdivided,
+                        subFaces,
+                        rearView
+                );
+
         OrigamiFoldResult result =
                 new OrigamiFoldResult(
-                        visibleRegions
+                        visibleRegions,
+                        visibleEdges
                 );
 
         // =========================================================
@@ -440,6 +453,164 @@ public final class OrieditaAdapter {
     // =========================================================
     // Face詳細
     // =========================================================
+
+    /*
+     * Oriedita本家の
+     * FoldedFigure_Worker_Drawer
+     * と同じ考え方で、実際に表示する線だけ抽出する。
+     */
+    private static List<OrigamiEdge> collectVisibleEdges(
+            PointSet subdivided,
+            SubFace[] subFaces,
+            boolean rearView
+    ) {
+
+        List<OrigamiEdge> edges =
+                new ArrayList<>();
+
+        for (int lineId = 1;
+             lineId <= subdivided.getNumLines();
+             lineId++) {
+
+            /*
+             * この線を境界として持つ
+             * 2つのSubFaceを取得する。
+             */
+            int regionMin =
+                    subdivided
+                            .lineInFaceBorder_min_lookup(
+                                    lineId
+                            );
+
+            int regionMax =
+                    subdivided
+                            .lineInFaceBorder_max_lookup(
+                                    lineId
+                            );
+
+            boolean minHasPaper =
+                    hasPaper(
+                            subFaces,
+                            regionMin
+                    );
+
+            boolean maxHasPaper =
+                    hasPaper(
+                            subFaces,
+                            regionMax
+                    );
+
+            boolean shouldDraw = false;
+
+            /*
+             * Oriedita本家と同じ条件。
+             *
+             * 1. 片側が空領域
+             * 2. 線の片側にしかSubFaceがない
+             * 3. 左右で実際に見えている元Faceが異なる
+             */
+            if (!minHasPaper
+                    || !maxHasPaper) {
+
+                shouldDraw = true;
+
+            } else if (regionMin == regionMax) {
+
+                shouldDraw = true;
+
+            } else {
+
+                int visibleFaceMin =
+                        getVisibleFaceId(
+                                subFaces[regionMin],
+                                rearView
+                        );
+
+                int visibleFaceMax =
+                        getVisibleFaceId(
+                                subFaces[regionMax],
+                                rearView
+                        );
+
+                if (visibleFaceMin
+                        != visibleFaceMax) {
+
+                    shouldDraw = true;
+                }
+            }
+
+            if (!shouldDraw) {
+                continue;
+            }
+
+            OrigamiVertex a =
+                    new OrigamiVertex(
+                            subdivided.getBeginX(
+                                    lineId
+                            ),
+                            subdivided.getBeginY(
+                                    lineId
+                            )
+                    );
+
+            OrigamiVertex b =
+                    new OrigamiVertex(
+                            subdivided.getEndX(
+                                    lineId
+                            ),
+                            subdivided.getEndY(
+                                    lineId
+                            )
+                    );
+
+            edges.add(
+                    new OrigamiEdge(
+                            a,
+                            b
+                    )
+            );
+        }
+
+        return edges;
+    }
+
+    private static boolean hasPaper(
+            SubFace[] subFaces,
+            int regionId
+    ) {
+
+        if (regionId <= 0
+                || regionId >= subFaces.length) {
+            return false;
+        }
+
+        SubFace subFace =
+                subFaces[regionId];
+
+        return subFace != null
+                && subFace.getFaceIdCount() > 0;
+    }
+
+    private static int getVisibleFaceId(
+            SubFace subFace,
+            boolean rearView
+    ) {
+
+        if (subFace == null
+                || subFace.getFaceIdCount() == 0) {
+            return 0;
+        }
+
+        int faceOrder =
+                rearView
+                        ? subFace.getFaceIdCount()
+                        : 1;
+
+        return subFace
+                .fromTop_count_FaceId(
+                        faceOrder
+                );
+    }
 
     private static void writeFaceInfo(
             Path debugDirectory,

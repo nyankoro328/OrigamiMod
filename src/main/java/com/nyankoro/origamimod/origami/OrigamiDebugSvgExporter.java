@@ -87,6 +87,8 @@ public final class OrigamiDebugSvgExporter {
             );
         }
 
+
+
         svg.append("</svg>\n");
 
         return write(output, svg);
@@ -243,6 +245,24 @@ public final class OrigamiDebugSvgExporter {
                     .append(color)
                     .append("\" stroke=\"none\"")
                     .append("/>\n");
+        }
+
+        /*
+         * Oriedita本家と同じ条件で
+         * 選別された境界線だけ描画する。
+         */
+        for (OrigamiEdge edge :
+                result.edges()) {
+
+            appendLine(
+                    svg,
+                    edge.a().x(),
+                    edge.a().y(),
+                    edge.b().x(),
+                    edge.b().y(),
+                    "#202020",
+                    1.2
+            );
         }
 
         svg.append("</svg>\n");

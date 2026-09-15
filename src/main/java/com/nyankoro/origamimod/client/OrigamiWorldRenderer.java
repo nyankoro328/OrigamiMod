@@ -15,6 +15,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
+import com.nyankoro.origamimod.origami.OrigamiEdge;
 
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -33,6 +34,10 @@ public final class OrigamiWorldRenderer {
      * 将来的にはアイテムごとのscaleとして持たせる予定。
      */
     private static final double SCALE = 0.006;
+
+    private static final double EDGE_WIDTH = 0.010;
+    private static final float EDGE_OFFSET = 0.002F;
+    private static final int EDGE_COLOR = 0xFF202020;
 
     /*
      * Orieditaによる折り畳み結果。
@@ -233,6 +238,34 @@ public final class OrigamiWorldRenderer {
                 .setColor(color);
     }
 
+    private static void renderVisibleEdges(
+            SubmitCustomGeometryEvent event,
+            PoseStack poseStack,
+            OrigamiFoldResult result
+    ) {
+
+        for (OrigamiEdge edge :
+                result.edges()) {
+
+            renderEdge(
+                    event,
+                    poseStack,
+                    edge.a(),
+                    edge.b(),
+                    EDGE_OFFSET
+            );
+
+            renderEdge(
+                    event,
+                    poseStack,
+                    edge.a(),
+                    edge.b(),
+                    -EDGE_OFFSET
+            );
+        }
+    }
+
+
     /**
      * .cpファイルを読み、
      * Orieditaで折り畳み計算を行う。
@@ -411,8 +444,166 @@ public final class OrigamiWorldRenderer {
                         face.faceId()
                 );
             }
+
+            /*
+             * 三角形分割の辺ではなく、
+             * SubFace本来の外周だけを描画する。
+             */
         }
 
+        renderVisibleEdges(
+                event,
+                poseStack,
+                result
+        );
+
         poseStack.popPose();
+    }
+
+    private static void renderEdge(
+            SubmitCustomGeometryEvent event,
+            PoseStack poseStack,
+            OrigamiVertex a,
+            OrigamiVertex b,
+            float yOffset
+    ) {
+
+        double x1 =
+                a.x() * SCALE;
+
+        double z1 =
+                -a.y() * SCALE;
+
+        double x2 =
+                b.x() * SCALE;
+
+        double z2 =
+                -b.y() * SCALE;
+
+        double dx =
+                x2 - x1;
+
+        double dz =
+                z2 - z1;
+
+        double length =
+                Math.sqrt(
+                        dx * dx
+                                + dz * dz
+                );
+
+        if (length < 0.000001) {
+            return;
+        }
+
+        double halfWidth =
+                EDGE_WIDTH / 2.0;
+
+        double offsetX =
+                -dz / length
+                        * halfWidth;
+
+        double offsetZ =
+                dx / length
+                        * halfWidth;
+
+        float p1x =
+                (float) (x1 + offsetX);
+
+        float p1z =
+                (float) (z1 + offsetZ);
+
+        float p2x =
+                (float) (x1 - offsetX);
+
+        float p2z =
+                (float) (z1 - offsetZ);
+
+        float p3x =
+                (float) (x2 - offsetX);
+
+        float p3z =
+                (float) (z2 - offsetZ);
+
+        float p4x =
+                (float) (x2 + offsetX);
+
+        float p4z =
+                (float) (z2 + offsetZ);
+
+        submitEdgeTriangle(
+                event,
+                poseStack,
+                p1x, yOffset, p1z,
+                p2x, yOffset, p2z,
+                p3x, yOffset, p3z
+        );
+
+        submitEdgeTriangle(
+                event,
+                poseStack,
+                p1x, yOffset, p1z,
+                p3x, yOffset, p3z,
+                p4x, yOffset, p4z
+        );
+    }
+
+    private static void submitEdgeTriangle(
+            SubmitCustomGeometryEvent event,
+            PoseStack poseStack,
+
+            float x1,
+            float y1,
+            float z1,
+
+            float x2,
+            float y2,
+            float z2,
+
+            float x3,
+            float y3,
+            float z3
+    ) {
+
+        event.getSubmitNodeCollector()
+                .submitCustomGeometry(
+                        poseStack,
+                        RenderTypes.debugTriangleFan(),
+                        (pose, consumer) -> {
+
+                            consumer
+                                    .addVertex(
+                                            pose,
+                                            x1,
+                                            y1,
+                                            z1
+                                    )
+                                    .setColor(
+                                            EDGE_COLOR
+                                    );
+
+                            consumer
+                                    .addVertex(
+                                            pose,
+                                            x2,
+                                            y2,
+                                            z2
+                                    )
+                                    .setColor(
+                                            EDGE_COLOR
+                                    );
+
+                            consumer
+                                    .addVertex(
+                                            pose,
+                                            x3,
+                                            y3,
+                                            z3
+                                    )
+                                    .setColor(
+                                            EDGE_COLOR
+                                    );
+                        }
+                );
     }
 }
