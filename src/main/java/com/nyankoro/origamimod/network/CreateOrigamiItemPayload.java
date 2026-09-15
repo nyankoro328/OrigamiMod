@@ -42,7 +42,7 @@ public record CreateOrigamiItemPayload(
     public static final int MAX_CP_BYTES =
             1024 * 1024;
 
-    private static final int MAX_FILE_NAME_LENGTH =
+    public static final int MAX_FILE_NAME_LENGTH =
             128;
 
 

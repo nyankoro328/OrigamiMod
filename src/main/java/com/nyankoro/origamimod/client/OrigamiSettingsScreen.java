@@ -763,7 +763,53 @@ public final class OrigamiSettingsScreen
 
     private void createOrigamiItem() {
 
+        if (cpFileName == null
+                || cpFileName.isBlank()) {
+
+            showCreateItemError(
+                    "CPファイル名が不正です"
+            );
+
+            return;
+        }
+
+
+        if (cpFileName.length()
+                > CreateOrigamiItemPayload.MAX_FILE_NAME_LENGTH) {
+
+            showCreateItemError(
+                    "CPファイル名が長すぎるため"
+                            + "アイテム化できません"
+            );
+
+            return;
+        }
+
+
+        if (!cpFileName
+                .toLowerCase(
+                        Locale.ROOT
+                )
+                .endsWith(
+                        ".cp"
+                )) {
+
+            showCreateItemError(
+                    "CPファイルではないため"
+                            + "アイテム化できません"
+            );
+
+            return;
+        }
+
+
         if (cpData.length == 0) {
+
+            showCreateItemError(
+                    "CPデータが空のため"
+                            + "アイテム化できません"
+            );
+
             return;
         }
 
@@ -771,16 +817,10 @@ public final class OrigamiSettingsScreen
         if (cpData.length
                 > CreateOrigamiItemPayload.MAX_CP_BYTES) {
 
-            if (this.minecraft.player != null) {
-
-                this.minecraft.player
-                        .sendSystemMessage(
-                                Component.literal(
-                                        "CPデータが大きすぎるため"
-                                                + "アイテム化できません"
-                                )
-                        );
-            }
+            showCreateItemError(
+                    "CPデータが大きすぎるため"
+                            + "アイテム化できません"
+            );
 
             return;
         }
@@ -797,6 +837,23 @@ public final class OrigamiSettingsScreen
                         previewAngle
                 )
         );
+    }
+
+
+    private void showCreateItemError(
+            String message
+    ) {
+
+        if (this.minecraft != null
+                && this.minecraft.player != null) {
+
+            this.minecraft.player
+                    .sendSystemMessage(
+                            Component.literal(
+                                    message
+                            )
+                    );
+        }
     }
 
 
