@@ -11,8 +11,75 @@ import net.minecraft.network.chat.Component;
 import java.util.List;
 import java.util.Locale;
 
+import com.nyankoro.origamimod.origami.OrigamiAppearance;
+
 public final class OrigamiSettingsScreen
         extends Screen {
+
+    /*
+     * 最初は簡単なプリセット方式。
+     *
+     * 将来的にはRGB入力や
+     * カラーピッカーへ置き換えられる。
+     */
+    private record ColorPreset(
+            String name,
+            int color
+    ) {
+    }
+
+    private static final ColorPreset[] COLOR_PRESETS = {
+
+            new ColorPreset(
+                    "白",
+                    0xFFF5F5F5
+            ),
+
+            new ColorPreset(
+                    "黒",
+                    0xFF202020
+            ),
+
+            new ColorPreset(
+                    "赤",
+                    0xFFE05A5A
+            ),
+
+            new ColorPreset(
+                    "青",
+                    0xFF4EA5D9
+            ),
+
+            new ColorPreset(
+                    "緑",
+                    0xFF63B66C
+            ),
+
+            new ColorPreset(
+                    "黄",
+                    0xFFFFC857
+            ),
+
+            new ColorPreset(
+                    "橙",
+                    0xFFFF9F43
+            ),
+
+            new ColorPreset(
+                    "紫",
+                    0xFF9B72CF
+            ),
+
+            new ColorPreset(
+                    "桃",
+                    0xFFFF8FB1
+            ),
+
+            new ColorPreset(
+                    "水色",
+                    0xFF62D0E8
+            )
+    };
 
     private final Screen parent;
 
@@ -46,6 +113,43 @@ public final class OrigamiSettingsScreen
 
     private int previewAngle =
             0;
+
+    /*
+     * 現在編集中の見た目設定。
+     */
+    private OrigamiAppearance appearance =
+            OrigamiAppearance.DEFAULT;
+
+    /*
+     * COLOR_PRESETS内の現在位置。
+     *
+     * DEFAULTと同じになるよう、
+     * 表 = 黄
+     * 裏 = 青
+     * 輪郭 = 黒
+     */
+    private int frontColorIndex =
+            5;
+
+    private int backColorIndex =
+            3;
+
+    private int edgeColorIndex =
+            1;
+
+    private int nextColorIndex(
+            int current
+    ) {
+
+        return (current + 1)
+                % COLOR_PRESETS.length;
+    }
+
+    private Button frontColorButton;
+
+    private Button backColorButton;
+
+    private Button edgeColorButton;
 
     /*
      * Rasterizerが生成した
@@ -102,6 +206,38 @@ public final class OrigamiSettingsScreen
 
         this.back =
                 back;
+    }
+
+    private Component getFrontColorText() {
+
+        return Component.literal(
+                "表色: "
+                        + COLOR_PRESETS[
+                        frontColorIndex
+                        ].name()
+        );
+    }
+
+
+    private Component getBackColorText() {
+
+        return Component.literal(
+                "裏色: "
+                        + COLOR_PRESETS[
+                        backColorIndex
+                        ].name()
+        );
+    }
+
+
+    private Component getEdgeColorText() {
+
+        return Component.literal(
+                "輪郭色: "
+                        + COLOR_PRESETS[
+                        edgeColorIndex
+                        ].name()
+        );
     }
 
 
@@ -182,6 +318,8 @@ public final class OrigamiSettingsScreen
                 previewLeft
                         + previewWidth
                         + gap;
+
+
 
 
         // =========================================================
@@ -364,8 +502,7 @@ public final class OrigamiSettingsScreen
         // 表示リセット
         // =========================================================
 
-        y +=
-                35;
+        y += 35;
 
         this.addRenderableWidget(
                 Button.builder(
@@ -381,6 +518,99 @@ public final class OrigamiSettingsScreen
                         )
                         .size(
                                 controlsWidth,
+                                20
+                        )
+                        .build()
+        );
+
+        // =========================================================
+// 色設定
+// =========================================================
+
+        y += 35;
+
+        /*
+         * 3個のボタンを右側パネル内に横並びする。
+         *
+         * [ 表色 ][ 裏色 ][ 輪郭 ]
+         */
+        int colorButtonGap =
+                3;
+
+        int colorButtonWidth =
+                (controlsWidth
+                        - colorButtonGap * 2)
+                        / 3;
+
+
+        /*
+         * 表色
+         */
+        this.addRenderableWidget(
+                Button.builder(
+                                Component.literal(
+                                        "表色"
+                                ),
+                                button ->
+                                        changeFrontColor()
+                        )
+                        .pos(
+                                controlsLeft,
+                                y
+                        )
+                        .size(
+                                colorButtonWidth,
+                                20
+                        )
+                        .build()
+        );
+
+
+        /*
+         * 裏色
+         */
+        this.addRenderableWidget(
+                Button.builder(
+                                Component.literal(
+                                        "裏色"
+                                ),
+                                button ->
+                                        changeBackColor()
+                        )
+                        .pos(
+                                controlsLeft
+                                        + colorButtonWidth
+                                        + colorButtonGap,
+                                y
+                        )
+                        .size(
+                                colorButtonWidth,
+                                20
+                        )
+                        .build()
+        );
+
+
+        /*
+         * 輪郭色
+         */
+        this.addRenderableWidget(
+                Button.builder(
+                                Component.literal(
+                                        "輪郭"
+                                ),
+                                button ->
+                                        changeEdgeColor()
+                        )
+                        .pos(
+                                controlsLeft
+                                        + (colorButtonWidth
+                                        + colorButtonGap)
+                                        * 2,
+                                y
+                        )
+                        .size(
+                                colorButtonWidth,
                                 20
                         )
                         .build()
@@ -496,6 +726,38 @@ public final class OrigamiSettingsScreen
         rebuildPreview();
     }
 
+    private void changeFrontColor() {
+
+        frontColorIndex =
+                nextColorIndex(
+                        frontColorIndex
+                );
+
+        updateAppearance();
+    }
+
+
+    private void changeBackColor() {
+
+        backColorIndex =
+                nextColorIndex(
+                        backColorIndex
+                );
+
+        updateAppearance();
+    }
+
+
+    private void changeEdgeColor() {
+
+        edgeColorIndex =
+                nextColorIndex(
+                        edgeColorIndex
+                );
+
+        updateAppearance();
+    }
+
 
     private void resetPreview() {
 
@@ -533,9 +795,32 @@ public final class OrigamiSettingsScreen
                                 previewWidth,
                                 previewHeight,
                                 previewZoom,
-                                previewAngle
+                                previewAngle,
+                                appearance
                         );
     }
+
+    private void updateAppearance() {
+
+        appearance =
+                new OrigamiAppearance(
+                        COLOR_PRESETS[
+                                frontColorIndex
+                                ].color(),
+
+                        COLOR_PRESETS[
+                                backColorIndex
+                                ].color(),
+
+                        COLOR_PRESETS[
+                                edgeColorIndex
+                                ].color()
+                );
+
+        rebuildPreview();
+    }
+
+
 
 
     // =========================================================

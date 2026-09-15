@@ -4,6 +4,7 @@ import com.nyankoro.origamimod.origami.OrigamiEdge;
 import com.nyankoro.origamimod.origami.OrigamiFace;
 import com.nyankoro.origamimod.origami.OrigamiFoldResult;
 import com.nyankoro.origamimod.origami.OrigamiVertex;
+import com.nyankoro.origamimod.origami.OrigamiAppearance;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,15 +20,6 @@ import java.util.List;
  * PNG / DynamicTexture生成へ流用できる。
  */
 public final class OrigamiPreviewRasterizer {
-
-    private static final int FRONT_COLOR =
-            0xFFFFC857;
-
-    private static final int BACK_COLOR =
-            0xFF4EA5D9;
-
-    private static final int EDGE_COLOR =
-            0xFF202020;
 
     private static final int PADDING =
             12;
@@ -216,12 +208,38 @@ public final class OrigamiPreviewRasterizer {
         return target;
     }
 
+
+
     public static List<Span> rasterize(
             OrigamiFoldResult result,
             int width,
             int height,
             double zoom,
             double angleDegrees
+    ) {
+
+        return rasterize(
+                result,
+                width,
+                height,
+                zoom,
+                angleDegrees,
+                OrigamiAppearance.DEFAULT
+        );
+    }
+
+
+    /*
+     * 実際のラスタライズ処理。
+     * 色を外部から指定できる版。
+     */
+    public static List<Span> rasterize(
+            OrigamiFoldResult result,
+            int width,
+            int height,
+            double zoom,
+            double angleDegrees,
+            OrigamiAppearance appearance
     ) {
 
         if (width <= 0
@@ -388,9 +406,8 @@ public final class OrigamiPreviewRasterizer {
 
             int color =
                     face.frontSideUp()
-                            ? FRONT_COLOR
-                            : BACK_COLOR;
-
+                            ? appearance.frontColor()
+                            : appearance.backColor();
             try {
 
                 for (PolygonTriangulator.Triangle triangle :
@@ -462,7 +479,7 @@ public final class OrigamiPreviewRasterizer {
                     renderHeight,
                     a,
                     b,
-                    EDGE_COLOR
+                    appearance.edgeColor()
             );
         }
 
