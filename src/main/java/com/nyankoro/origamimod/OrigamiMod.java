@@ -40,6 +40,8 @@ import java.util.function.Supplier;
 
 import com.nyankoro.origamimod.network.OrigamiNetwork;
 
+import com.nyankoro.origamimod.item.OrigamiItem;
+
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(OrigamiMod.MODID)
 public class OrigamiMod {
@@ -97,9 +99,10 @@ public class OrigamiMod {
      * 将来的にはItemStack側に
      * origamiIdや色・用途などのデータを保持する。
      */
-    public static final DeferredItem<Item> ORIGAMI_ITEM =
-            ITEMS.registerSimpleItem(
+    public static final DeferredItem<OrigamiItem> ORIGAMI_ITEM =
+            ITEMS.registerItem(
                     "origami_item",
+                    OrigamiItem::new,
                     properties ->
                             properties.component(
                                     ORIGAMI_DATA.get(),
