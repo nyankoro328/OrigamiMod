@@ -10,9 +10,12 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.io.ByteArrayInputStream;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
+
 import java.util.List;
+
 
 public final class OrigamiEditorScreen
         extends Screen {
@@ -25,7 +28,29 @@ public final class OrigamiEditorScreen
     private String status =
             ".cp ファイルをこの画面へドラッグ＆ドロップしてください";
 
+
+    /*
+     * 折る前の展開図プレビュー。
+     */
+    private CreasePatternPreviewTexture cpPreview;
+
+
     private Button foldButton;
+
+
+    /*
+     * init()時に画面サイズから決定する。
+     */
+    private int previewX;
+
+    private int previewY;
+
+    private int previewSize;
+
+    private int controlsX;
+
+    private int controlsWidth;
+
 
     public OrigamiEditorScreen() {
 
@@ -36,14 +61,75 @@ public final class OrigamiEditorScreen
         );
     }
 
+
     @Override
     protected void init() {
 
-        int centerX =
-                this.width / 2;
+        /*
+         * 画面右側を操作欄、
+         * 左側をプレビュー欄にする。
+         */
+        int margin =
+                18;
+
+        controlsWidth =
+                Math.max(
+                        190,
+                        Math.min(
+                                280,
+                                width / 3
+                        )
+                );
+
+        int previewAreaWidth =
+                width
+                        - controlsWidth
+                        - margin * 3;
+
+        int previewAreaHeight =
+                height
+                        - margin * 2
+                        - 20;
+
+        previewSize =
+                Math.max(
+                        96,
+                        Math.min(
+                                previewAreaWidth,
+                                previewAreaHeight
+                        )
+                );
+
+        previewX =
+                margin
+                        + Math.max(
+                        0,
+                        (
+                                previewAreaWidth
+                                        - previewSize
+                        ) / 2
+                );
+
+        previewY =
+                margin
+                        + Math.max(
+                        0,
+                        (
+                                previewAreaHeight
+                                        - previewSize
+                        ) / 2
+                );
+
+
+        controlsX =
+                width
+                        - margin
+                        - controlsWidth;
+
 
         int buttonY =
-                this.height - 50;
+                height - 60;
+
 
         foldButton =
                 this.addRenderableWidget(
@@ -55,15 +141,16 @@ public final class OrigamiEditorScreen
                                                 foldCp()
                                 )
                                 .pos(
-                                        centerX - 105,
+                                        controlsX,
                                         buttonY
                                 )
                                 .size(
-                                        100,
+                                        controlsWidth,
                                         20
                                 )
                                 .build()
                 );
+
 
         /*
          * CP未読込では押せない。
@@ -71,32 +158,38 @@ public final class OrigamiEditorScreen
         foldButton.active =
                 cpData != null;
 
+
         this.addRenderableWidget(
                 Button.builder(
                                 Component.literal(
                                         "閉じる"
                                 ),
-                                button ->
-                                        this.minecraft.gui
-                                                .setScreen(
-                                                        null
-                                                )
+                                button -> {
+
+                                    closeCpPreview();
+
+                                    this.minecraft.gui
+                                            .setScreen(
+                                                    null
+                                            );
+                                }
                         )
                         .pos(
-                                centerX + 5,
-                                buttonY
+                                controlsX,
+                                buttonY + 25
                         )
                         .size(
-                                100,
+                                controlsWidth,
                                 20
                         )
                         .build()
         );
     }
 
+
     /*
-     * Minecraftのウィンドウへ
-     * ファイルをドロップしたときに呼ばれる。
+     * Minecraftウィンドウへ
+     * .cpをドロップしたときに呼ばれる。
      */
     @Override
     public void onFilesDrop(
@@ -111,12 +204,15 @@ public final class OrigamiEditorScreen
             return;
         }
 
+
         Path file =
                 files.getFirst();
+
 
         String fileName =
                 file.getFileName()
                         .toString();
+
 
         if (!fileName
                 .toLowerCase()
@@ -130,24 +226,52 @@ public final class OrigamiEditorScreen
             return;
         }
 
+
         try {
 
-            cpData =
+            byte[] newCpData =
                     Files.readAllBytes(
                             file
                     );
 
+
+            /*
+             * 新しいプレビューを先に生成する。
+             *
+             * 成功してから古いものを消すことで、
+             * 壊れたCPをドロップしても
+             * 直前の正常なプレビューを失わない。
+             */
+            CreasePatternPreviewTexture newPreview =
+                    new CreasePatternPreviewTexture(
+                            newCpData
+                    );
+
+
+            closeCpPreview();
+
+
+            cpPreview =
+                    newPreview;
+
+            cpData =
+                    newCpData;
+
             cpFileName =
                     fileName;
+
 
             status =
                     "読み込み完了: "
                             + fileName;
 
+
             if (foldButton != null) {
+
                 foldButton.active =
                         true;
             }
+
 
             OrigamiMod.LOGGER.info(
                     "CP loaded from {}",
@@ -155,9 +279,6 @@ public final class OrigamiEditorScreen
             );
 
         } catch (Exception e) {
-
-            cpData =
-                    null;
 
             status =
                     "CPファイルの読み込みに失敗しました";
@@ -169,20 +290,24 @@ public final class OrigamiEditorScreen
         }
     }
 
+
     private void foldCp() {
 
         if (cpData == null) {
             return;
         }
 
+
         status =
                 "折りたたみ計算中...";
+
 
         try {
 
             OrigamiFoldResult front;
 
             OrigamiFoldResult back;
+
 
             try (
                     ByteArrayInputStream frontInput =
@@ -201,15 +326,22 @@ public final class OrigamiEditorScreen
                                 frontInput
                         );
 
+
                 back =
                         OrieditaAdapter.foldBack(
                                 backInput
                         );
             }
 
+
             /*
              * 折りたたみ成功。
-             * 次の設定画面へ進む。
+             *
+             * CPプレビューを保持したまま、
+             * 設定画面へ遷移する。
+             *
+             * 「戻る」でこのScreenへ戻った際、
+             * 同じCPプレビューを再利用できる。
              */
             this.minecraft.gui
                     .setScreen(
@@ -221,10 +353,12 @@ public final class OrigamiEditorScreen
                             )
                     );
 
+
         } catch (Exception e) {
 
             status =
                     "折りたたみに失敗しました";
+
 
             OrigamiMod.LOGGER.error(
                     "Failed to fold imported CP",
@@ -232,6 +366,31 @@ public final class OrigamiEditorScreen
             );
         }
     }
+
+
+    /*
+     * DynamicTexture解放。
+     */
+    private void closeCpPreview() {
+
+        if (cpPreview != null) {
+
+            cpPreview.close();
+
+            cpPreview =
+                    null;
+        }
+    }
+
+
+    @Override
+    public void onClose() {
+
+        closeCpPreview();
+
+        super.onClose();
+    }
+
 
     @Override
     public void extractBackground(
@@ -248,47 +407,188 @@ public final class OrigamiEditorScreen
                 partialTicks
         );
 
-        int left =
-                this.width / 2 - 150;
+
+        // =========================================================
+        // 左側：展開図プレビュー
+        // =========================================================
+
+        /*
+         * 枠線。
+         */
+        graphics.fill(
+                previewX - 3,
+                previewY - 3,
+                previewX + previewSize + 3,
+                previewY + previewSize + 3,
+                0xFF202020
+        );
+
+
+        /*
+         * 背景。
+         */
+        graphics.fill(
+                previewX,
+                previewY,
+                previewX + previewSize,
+                previewY + previewSize,
+                0xFFF5F5F5
+        );
+
+
+        if (cpPreview != null) {
+
+            graphics.blit(
+                    cpPreview.textureId(),
+
+                    previewX,
+                    previewY,
+
+                    previewX + previewSize,
+                    previewY + previewSize,
+
+                    0.0F,
+                    1.0F,
+                    0.0F,
+                    1.0F
+            );
+
+        } else {
+
+            String message =
+                    ".cp をここへドラッグ＆ドロップ";
+
+
+            int textWidth =
+                    font.width(
+                            message
+                    );
+
+
+            graphics.text(
+                    font,
+                    Component.literal(
+                            message
+                    ),
+
+                    previewX
+                            + (
+                            previewSize
+                                    - textWidth
+                    ) / 2,
+
+                    previewY
+                            + previewSize / 2,
+
+                    0xFF777777
+            );
+        }
+
+
+        // =========================================================
+        // 右側：情報・操作
+        // =========================================================
 
         graphics.text(
-                this.font,
+                font,
                 Component.literal(
                         "Origami Editor"
                 ),
-                left,
-                30,
-                0xFFFFFF
+                controlsX,
+                25,
+                0xFFFFFFFF
         );
 
+
         graphics.text(
-                this.font,
+                font,
                 Component.literal(
-                        "CP: " + cpFileName
+                        "CP:"
                 ),
-                left,
+                controlsX,
                 55,
-                0xFFFFFF
+                0xFFAAAAAA
         );
 
+
         graphics.text(
-                this.font,
+                font,
+                Component.literal(
+                        cpFileName
+                ),
+                controlsX,
+                70,
+                0xFFFFFFFF
+        );
+
+
+        graphics.text(
+                font,
                 Component.literal(
                         status
                 ),
-                left,
-                75,
-                0xAAAAAA
+                controlsX,
+                100,
+                0xFFAAAAAA
         );
 
-        graphics.text(
-                this.font,
-                Component.literal(
-                        "ここへ .cp ファイルをドラッグ＆ドロップ"
-                ),
-                left,
-                110,
-                0xFFFF55
-        );
+
+        if (cpPreview != null) {
+
+            graphics.text(
+                    font,
+                    Component.literal(
+                            "線数: "
+                                    + cpPreview.lineCount()
+                    ),
+                    controlsX,
+                    125,
+                    0xFFFFFFFF
+            );
+
+
+            graphics.text(
+                    font,
+                    Component.literal(
+                            "赤: 山折り"
+                    ),
+                    controlsX,
+                    155,
+                    0xFFFF7777
+            );
+
+
+            graphics.text(
+                    font,
+                    Component.literal(
+                            "青: 谷折り"
+                    ),
+                    controlsX,
+                    170,
+                    0xFF7799FF
+            );
+
+
+            graphics.text(
+                    font,
+                    Component.literal(
+                            "黒: 外周"
+                    ),
+                    controlsX,
+                    185,
+                    0xFFFFFFFF
+            );
+
+
+            graphics.text(
+                    font,
+                    Component.literal(
+                            "灰: FLAT"
+                    ),
+                    controlsX,
+                    200,
+                    0xFFBBBBBB
+            );
+        }
     }
 }
