@@ -348,6 +348,7 @@ public final class OrigamiEditorScreen
                             new OrigamiSettingsScreen(
                                     this,
                                     cpFileName,
+                                    cpData,
                                     front,
                                     back
                             )

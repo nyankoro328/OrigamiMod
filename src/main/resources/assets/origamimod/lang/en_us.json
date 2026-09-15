@@ -2,6 +2,7 @@
   "itemGroup.origamimod": "Example Mod Tab",
   "block.origamimod.example_block": "Example Block",
   "item.origamimod.example_item": "Example Item",
+  "item.origamimod.origami_item": "Origami",
 
   "origamimod.configuration.title": "Origami Mod Configs",
   "origamimod.configuration.section.origamimod.common.toml": "Origami Mod Configs",

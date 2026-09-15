@@ -32,6 +32,14 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 //import com.nyankoro.origamimod.origami.OrieditaSmokeTest;
 
+import com.nyankoro.origamimod.origami.OrigamiItemData;
+
+import net.minecraft.core.component.DataComponentType;
+
+import java.util.function.Supplier;
+
+import com.nyankoro.origamimod.network.OrigamiNetwork;
+
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(OrigamiMod.MODID)
 public class OrigamiMod {
@@ -55,13 +63,63 @@ public class OrigamiMod {
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", p -> p.food(new FoodProperties.Builder()
             .alwaysEdible().nutrition(1).saturationModifier(2f).build()));
 
+    /*
+     * 折り紙ItemStack用Data Component。
+     */
+    public static final DeferredRegister.DataComponents DATA_COMPONENTS =
+            DeferredRegister.createDataComponents(
+                    Registries.DATA_COMPONENT_TYPE,
+                    MODID
+            );
+
+
+    public static final Supplier<
+            DataComponentType<OrigamiItemData>
+            > ORIGAMI_DATA =
+            DATA_COMPONENTS.registerComponentType(
+                    "origami_data",
+                    builder ->
+                            builder
+                                    .persistent(
+                                            OrigamiItemData.CODEC
+                                    )
+                                    .networkSynchronized(
+                                            OrigamiItemData.STREAM_CODEC
+                                    )
+            );
+
+
+
+    /*
+     * ユーザーが作成した折り紙を保持する汎用アイテム。
+     *
+     * 作品ごとに別のItemを登録するのではなく、
+     * 将来的にはItemStack側に
+     * origamiIdや色・用途などのデータを保持する。
+     */
+    public static final DeferredItem<Item> ORIGAMI_ITEM =
+            ITEMS.registerSimpleItem(
+                    "origami_item",
+                    properties ->
+                            properties.component(
+                                    ORIGAMI_DATA.get(),
+                                    OrigamiItemData.DEFAULT
+                            )
+            );
+
     // Creates a creative tab with the id "origamimod:example_tab" for the example item, that is placed after the combat tab
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.origamimod")) //The language key for the title of your CreativeModeTab
             .withTabsBefore(CreativeModeTabs.COMBAT)
             .icon(() -> EXAMPLE_ITEM.get().getDefaultInstance())
             .displayItems((parameters, output) -> {
-                output.accept(EXAMPLE_ITEM.get());// Add the example item to the tab. For your own tabs, this method is preferred over the event
+                output.accept(
+                        EXAMPLE_ITEM.get()
+                );
+
+                output.accept(
+                        ORIGAMI_ITEM.get()
+                );// Add the example item to the tab. For your own tabs, this method is preferred over the event
             }).build());
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
@@ -69,9 +127,21 @@ public class OrigamiMod {
     public OrigamiMod(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
 
+        modEventBus.addListener(
+                OrigamiNetwork::registerPayloads
+        );
+
         BLOCKS.register(modEventBus);
+
+        DATA_COMPONENTS.register(
+                modEventBus
+        );
+
         ITEMS.register(modEventBus);
-        CREATIVE_MODE_TABS.register(modEventBus);
+
+        CREATIVE_MODE_TABS.register(
+                modEventBus
+        );
 
         NeoForge.EVENT_BUS.register(this);
 

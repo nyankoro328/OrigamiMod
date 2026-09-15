@@ -13,6 +13,10 @@ import java.util.Locale;
 
 import com.nyankoro.origamimod.origami.OrigamiAppearance;
 
+import com.nyankoro.origamimod.network.CreateOrigamiItemPayload;
+
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+
 public final class OrigamiSettingsScreen
         extends Screen {
 
@@ -88,6 +92,8 @@ public final class OrigamiSettingsScreen
     private final OrigamiFoldResult front;
 
     private final OrigamiFoldResult back;
+
+    private final byte[] cpData;
 
     /*
      * 折り紙の用途。
@@ -185,6 +191,7 @@ public final class OrigamiSettingsScreen
     public OrigamiSettingsScreen(
             Screen parent,
             String cpFileName,
+            byte[] cpData,
             OrigamiFoldResult front,
             OrigamiFoldResult back
     ) {
@@ -206,6 +213,9 @@ public final class OrigamiSettingsScreen
 
         this.back =
                 back;
+
+        this.cpData =
+                cpData.clone();
     }
 
     private Component getFrontColorText() {
@@ -662,12 +672,8 @@ public final class OrigamiSettingsScreen
                                         Component.literal(
                                                 "アイテム化"
                                         ),
-                                        button -> {
-
-                                            /*
-                                             * 後で実装。
-                                             */
-                                        }
+                                        button ->
+                                                createOrigamiItem()
                                 )
                                 .pos(
                                         this.width / 2
@@ -680,9 +686,6 @@ public final class OrigamiSettingsScreen
                                 )
                                 .build()
                 );
-
-        createItemButton.active =
-                false;
 
 
         /*
@@ -756,6 +759,44 @@ public final class OrigamiSettingsScreen
                 );
 
         updateAppearance();
+    }
+
+    private void createOrigamiItem() {
+
+        if (cpData.length == 0) {
+            return;
+        }
+
+
+        if (cpData.length
+                > CreateOrigamiItemPayload.MAX_CP_BYTES) {
+
+            if (this.minecraft.player != null) {
+
+                this.minecraft.player
+                        .sendSystemMessage(
+                                Component.literal(
+                                        "CPデータが大きすぎるため"
+                                                + "アイテム化できません"
+                                )
+                        );
+            }
+
+            return;
+        }
+
+
+        ClientPacketDistributor.sendToServer(
+                new CreateOrigamiItemPayload(
+                        cpFileName,
+                        cpData,
+                        useType,
+                        appearance.frontColor(),
+                        appearance.backColor(),
+                        appearance.edgeColor(),
+                        previewAngle
+                )
+        );
     }
 
 
