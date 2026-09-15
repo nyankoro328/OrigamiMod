@@ -35,6 +35,8 @@ public final class OrigamiWorldRenderer {
      */
     private static final double SCALE = 0.006;
 
+    private static final double DEBUG_HEIGHT_OFFSET = 2.0;
+
     private static final double EDGE_WIDTH = 0.010;
     private static final float EDGE_OFFSET = 0.002F;
     private static final int EDGE_COLOR = 0xFF202020;
@@ -135,7 +137,7 @@ public final class OrigamiWorldRenderer {
                     new Vec3(
                             forwardPosition.x,
                             minecraft.player.getY()
-                                    + 0.03,
+                                    + DEBUG_HEIGHT_OFFSET,
                             forwardPosition.z
                     );
 
@@ -174,18 +176,32 @@ public final class OrigamiWorldRenderer {
          * 1面ずつMinecraftへ描画する。
          */
 
-        renderFoldResult(
-                event,
-                poseStack,
-                frontFoldResult,
-                -1.5
-        );
+        /*
+         * カメラが紙の上側にいる場合は正面、
+         * 下側にいる場合は裏面を描画する。
+         */
+        boolean rearView =
+                camera.y < anchor.y;
+
+        OrigamiFoldResult visibleResult =
+                rearView
+                        ? backFoldResult
+                        : frontFoldResult;
+
+        /*
+         * 境界線は、現在カメラがいる側へ
+         * わずかに浮かせてZ-fightingを防ぐ。
+         */
+        float edgeOffset =
+                rearView
+                        ? -EDGE_OFFSET
+                        : EDGE_OFFSET;
 
         renderFoldResult(
                 event,
                 poseStack,
-                backFoldResult,
-                1.5
+                visibleResult,
+                edgeOffset
         );
 
         poseStack.popPose();
@@ -241,7 +257,8 @@ public final class OrigamiWorldRenderer {
     private static void renderVisibleEdges(
             SubmitCustomGeometryEvent event,
             PoseStack poseStack,
-            OrigamiFoldResult result
+            OrigamiFoldResult result,
+            float edgeOffset
     ) {
 
         for (OrigamiEdge edge :
@@ -252,15 +269,7 @@ public final class OrigamiWorldRenderer {
                     poseStack,
                     edge.a(),
                     edge.b(),
-                    EDGE_OFFSET
-            );
-
-            renderEdge(
-                    event,
-                    poseStack,
-                    edge.a(),
-                    edge.b(),
-                    -EDGE_OFFSET
+                    edgeOffset
             );
         }
     }
@@ -382,16 +391,10 @@ public final class OrigamiWorldRenderer {
             SubmitCustomGeometryEvent event,
             PoseStack poseStack,
             OrigamiFoldResult result,
-            double xOffset
+            float edgeOffset
     ) {
 
         poseStack.pushPose();
-
-        poseStack.translate(
-                xOffset,
-                0.0,
-                0.0
-        );
 
         for (OrigamiFace face : result.faces()) {
 
@@ -454,7 +457,8 @@ public final class OrigamiWorldRenderer {
         renderVisibleEdges(
                 event,
                 poseStack,
-                result
+                result,
+                edgeOffset
         );
 
         poseStack.popPose();
