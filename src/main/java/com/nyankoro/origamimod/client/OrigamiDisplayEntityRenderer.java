@@ -338,6 +338,7 @@ public final class OrigamiDisplayEntityRenderer
 
         float height =
                 DEFAULT_WIDTH
+                        * state.displayScale
                         * (
                         (float) state.textureHeight
                                 / state.textureWidth
@@ -360,14 +361,14 @@ public final class OrigamiDisplayEntityRenderer
          * 半分の高さだけ上へ移動して
          * Entityの当たり判定中央へ合わせる。
          */
+        poseStack.pushPose();
+
+
         poseStack.translate(
                 0.0F,
                 halfHeight,
                 0.0F
         );
-
-
-        poseStack.pushPose();
 
 
         /*
@@ -416,8 +417,8 @@ public final class OrigamiDisplayEntityRenderer
             float halfWidth,
             float halfHeight,
             boolean rearView,
-            int lightCoords,
-            int displayAngle
+            int displayAngle,
+            int lightCoords
     ) {
 
         float normalSign =

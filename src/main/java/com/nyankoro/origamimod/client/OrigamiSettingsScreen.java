@@ -893,15 +893,17 @@ public final class OrigamiSettingsScreen
         }
 
 
-        new CreateOrigamiItemPayload(
-                cpFileName,
-                exportResult.visualAssetId(),
-                useType,
-                appearance.frontColor(),
-                appearance.backColor(),
-                appearance.edgeColor(),
-                showBack,
-                previewAngle
+        ClientPacketDistributor.sendToServer(
+                new CreateOrigamiItemPayload(
+                        cpFileName,
+                        exportResult.visualAssetId(),
+                        useType,
+                        appearance.frontColor(),
+                        appearance.backColor(),
+                        appearance.edgeColor(),
+                        showBack,
+                        previewAngle
+                )
         );
     }
 
