@@ -20,6 +20,9 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.phys.Vec3;
 
+import com.nyankoro.origamimod.entity.OrigamiDisplayEntity;
+import com.nyankoro.origamimod.server.OrigamiVisualAssetStore;
+
 
 
 /*
@@ -148,25 +151,13 @@ public final class OrigamiItem
 
 
         /*
-         * 床と天井には壁掛けできない。
+         * 床と天井には設置できない。
          */
         if (clickedFace == Direction.UP
                 || clickedFace == Direction.DOWN) {
 
             if (context.getPlayer()
                     instanceof ServerPlayer player) {
-
-                OrigamiMod.LOGGER.info(
-                        "Rejected origami wall placement: "
-                                + "player={}, "
-                                + "block={}, "
-                                + "face={}",
-                        player.getName()
-                                .getString(),
-                        clickedPos,
-                        clickedFace
-                );
-
 
                 player.sendSystemMessage(
                         Component.literal(
@@ -175,16 +166,12 @@ public final class OrigamiItem
                 );
             }
 
-
             return InteractionResult.FAIL;
         }
 
 
         /*
-         * 実際に折り紙を表示する予定位置。
-         *
-         * クリック位置そのものではなく、
-         * 壁面から少しだけ外側へずらす。
+         * ここが必要。
          */
         Vec3 placementPosition =
                 calculateWallPosition(
@@ -193,32 +180,122 @@ public final class OrigamiItem
                 );
 
 
-        /*
-         * 壁の外側を向く水平角度。
-         *
-         * SOUTH =   0
-         * WEST  =  90
-         * NORTH = 180
-         * EAST  = 270
-         */
         float wallYaw =
                 calculateWallYaw(
                         clickedFace
                 );
 
 
+        /*
+         * Server側でEntity生成。
+         */
         if (context.getPlayer()
                 instanceof ServerPlayer player) {
 
+            ItemStack stack =
+                    context.getItemInHand();
+
+
+            OrigamiItemData data =
+                    stack.getOrDefault(
+                            OrigamiMod.ORIGAMI_DATA.get(),
+                            OrigamiItemData.DEFAULT
+                    );
+
+
+            if (!data.hasVisualAsset()) {
+
+                player.sendSystemMessage(
+                        Component.literal(
+                                "この折り紙には画像データが設定されていません"
+                        )
+                );
+
+                return InteractionResult.FAIL;
+            }
+
+
+            if (!"WALL".equals(
+                    data.useType()
+            )) {
+
+                player.sendSystemMessage(
+                        Component.literal(
+                                "この折り紙は壁掛け用途ではありません"
+                        )
+                );
+
+                return InteractionResult.FAIL;
+            }
+
+
+            if (!OrigamiVisualAssetStore.exists(
+                    player.level()
+                            .getServer(),
+                    data.visualAssetId()
+            )) {
+
+                player.sendSystemMessage(
+                        Component.literal(
+                                "サーバーに折り紙画像が存在しません"
+                        )
+                );
+
+                return InteractionResult.FAIL;
+            }
+
+
+            OrigamiDisplayEntity displayEntity =
+                    new OrigamiDisplayEntity(
+                            OrigamiMod
+                                    .ORIGAMI_DISPLAY_ENTITY
+                                    .get(),
+                            player.level()
+                    );
+
+
+            displayEntity.setPos(
+                    placementPosition
+            );
+
+
+            displayEntity.initialize(
+                    data.visualAssetId(),
+                    clickedFace
+            );
+
+
+            boolean added =
+                    player.level()
+                            .addFreshEntity(
+                                    displayEntity
+                            );
+
+
+            if (!added) {
+
+                player.sendSystemMessage(
+                        Component.literal(
+                                "折り紙の設置に失敗しました"
+                        )
+                );
+
+                return InteractionResult.FAIL;
+            }
+
+
             OrigamiMod.LOGGER.info(
-                    "Origami wall placement calculated: "
+                    "Placed OrigamiDisplayEntity: "
+                            + "entityId={}, "
                             + "player={}, "
+                            + "assetId={}, "
                             + "block={}, "
                             + "face={}, "
                             + "position={}, "
                             + "yaw={}",
-                    player.getName()
-                            .getString(),
+                    displayEntity.getId(),
+                    player.getUUID(),
+                    data.visualAssetId(),
                     clickedPos,
                     clickedFace,
                     placementPosition,
@@ -230,10 +307,7 @@ public final class OrigamiItem
                     Component.literal(
                             String.format(
                                     Locale.ROOT,
-                                    "表示予定位置: %.3f, %.3f, %.3f / %s / yaw=%.0f",
-                                    placementPosition.x(),
-                                    placementPosition.y(),
-                                    placementPosition.z(),
+                                    "折り紙Entityを設置しました / %s / yaw=%.0f",
                                     clickedFace,
                                     wallYaw
                             )

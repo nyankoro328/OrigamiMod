@@ -42,6 +42,11 @@ import com.nyankoro.origamimod.network.OrigamiNetwork;
 
 import com.nyankoro.origamimod.item.OrigamiItem;
 
+import com.nyankoro.origamimod.entity.OrigamiDisplayEntity;
+
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
+
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(OrigamiMod.MODID)
 public class OrigamiMod {
@@ -53,6 +58,43 @@ public class OrigamiMod {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
     // Create a Deferred Register to hold Items which will all be registered under the "origamimod" namespace
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
+    /*
+     * Origami ModのEntityType。
+     */
+    public static final DeferredRegister.Entities ENTITY_TYPES =
+            DeferredRegister.createEntities(
+                    MODID
+            );
+
+
+    /*
+     * 壁へ配置する折り紙Entity。
+     *
+     * 現段階のbounding boxは
+     * 1.5 x 1.5 block。
+     *
+     * 後で画像サイズ・scaleに応じた
+     * 選択範囲へ調整する。
+     */
+    public static final DeferredHolder<
+            EntityType<?>,
+            EntityType<OrigamiDisplayEntity>
+            >
+            ORIGAMI_DISPLAY_ENTITY =
+            ENTITY_TYPES.registerEntityType(
+                    "origami_display",
+                    OrigamiDisplayEntity::new,
+                    MobCategory.MISC,
+                    builder ->
+                            builder
+                                    .sized(
+                                            1.5F,
+                                            1.5F
+                                    )
+                                    .updateInterval(
+                                            20
+                                    )
+            );
     // Create a Deferred Register to hold CreativeModeTabs which will all be registered under the "origamimod" namespace
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 
@@ -135,6 +177,10 @@ public class OrigamiMod {
         );
 
         BLOCKS.register(modEventBus);
+
+        ENTITY_TYPES.register(
+                modEventBus
+        );
 
         DATA_COMPONENTS.register(
                 modEventBus
