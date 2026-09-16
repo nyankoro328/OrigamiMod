@@ -10,6 +10,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 
 import net.minecraft.world.damagesource.DamageSource;
 
@@ -24,6 +25,11 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import net.minecraft.world.item.ItemStack;
+
+import com.nyankoro.origamimod.OrigamiMod;
+
+import net.minecraft.network.chat.Component;
 
 /*
  * 壁へ設置された折り紙1個を表すEntity。
@@ -117,6 +123,15 @@ public final class OrigamiDisplayEntity
             );
 
     /*
+     * このEntityを設置するときに使った
+     * Origami Itemを1個分保持する。
+     *
+     * Client描画には使わず、
+     * 破壊時のItem復元とワールド保存に使用する。
+     */
+    private ItemStack storedItem =
+            ItemStack.EMPTY;
+    /*
      * 壁掛け折り紙の初期Hitbox。
      *
      * 横幅・高さは現在の表示サイズ1.5 block。
@@ -162,7 +177,8 @@ public final class OrigamiDisplayEntity
             String visualAssetId,
             Direction wallFace,
             boolean backSideOutward,
-            int displayAngle
+            int displayAngle,
+            ItemStack sourceStack
     ) {
 
         if (!OrigamiVisualAssetId.isValidFormat(
@@ -201,6 +217,26 @@ public final class OrigamiDisplayEntity
         setDisplayAngle(
                 displayAngle
         );
+
+        if (sourceStack == null
+                || sourceStack.isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "Source origami item is empty"
+            );
+        }
+
+
+        /*
+         * Stackが複数個あっても、
+         * Entity1個につき保存するのは1個だけ。
+         *
+         * Data Componentもそのままコピーされる。
+         */
+        this.storedItem =
+                sourceStack.copyWithCount(
+                        1
+                );
     }
 
 
@@ -592,6 +628,18 @@ public final class OrigamiDisplayEntity
                 "DisplayAngle",
                 getDisplayAngle()
         );
+
+        /*
+         * 設置元のOrigami Itemを丸ごと保存する。
+         */
+        if (!this.storedItem.isEmpty()) {
+
+            output.store(
+                    "StoredItem",
+                    ItemStack.CODEC,
+                    this.storedItem
+            );
+        }
     }
 
 
@@ -712,6 +760,15 @@ public final class OrigamiDisplayEntity
         this.setNoGravity(
                 true
         );
+
+        this.storedItem =
+                input.read(
+                                "StoredItem",
+                                ItemStack.CODEC
+                        )
+                        .orElse(
+                                ItemStack.EMPTY
+                        );
     }
 
     /*
@@ -864,7 +921,81 @@ public final class OrigamiDisplayEntity
             float damage
     ) {
 
-        return false;
+        /*
+         * プレイヤーによる破壊だけを受け付ける。
+         *
+         * 爆発・炎・Mobなどでは
+         * 現段階では壊さない。
+         */
+        if (!(source.getEntity()
+                instanceof ServerPlayer player)) {
+
+            return false;
+        }
+
+
+        /*
+         * Creativeの攻撃なら、
+         *
+         * ・Entityは消す
+         * ・Itemはドロップしない
+         *
+         * VanillaのCreativeらしい挙動。
+         */
+        if (source.isCreativePlayer()) {
+
+            this.discard();
+
+            return true;
+        }
+
+
+        /*
+         * 古い開発用Entityなど、
+         * StoredItem追加前に作られたEntityは
+         * Itemを復元できない。
+         *
+         * 誤って作品を消さないよう、
+         * Survivalでは破壊しない。
+         *
+         * Creativeなら上の処理で削除可能。
+         */
+        if (this.storedItem.isEmpty()) {
+
+            OrigamiMod.LOGGER.warn(
+                    "Cannot recover legacy OrigamiDisplayEntity "
+                            + "without StoredItem: entityId={}",
+                    this.getId()
+            );
+
+            player.sendSystemMessage(
+                    Component.literal(
+                            "この古い折り紙Entityには"
+                                    + "回収用Item情報がありません"
+                    )
+            );
+
+            return false;
+        }
+
+
+        /*
+         * 元のItemを1個そのままドロップする。
+         */
+        this.spawnAtLocation(
+                level,
+                this.storedItem.copy(),
+                0.0F
+        );
+
+
+        /*
+         * 壁掛けEntityを削除。
+         */
+        this.discard();
+
+
+        return true;
     }
 
 

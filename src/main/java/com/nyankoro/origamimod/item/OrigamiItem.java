@@ -264,7 +264,8 @@ public final class OrigamiItem
                     data.visualAssetId(),
                     clickedFace,
                     data.backSideOutward(),
-                    data.angle()
+                    data.angle(),
+                    stack
             );
 
 
@@ -284,6 +285,17 @@ public final class OrigamiItem
                 );
 
                 return InteractionResult.FAIL;
+            }
+
+            /*
+             * Survivalでは設置時に1個消費する。
+             * Creativeでは消費しない。
+             */
+            if (!player.hasInfiniteMaterials()) {
+
+                stack.shrink(
+                        1
+                );
             }
 
 
