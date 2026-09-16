@@ -180,11 +180,6 @@ public final class OrigamiWorldRenderer {
             return;
         }
 
-        /*
-         * 初回のみOrieditaで折り畳み計算を行う。
-         */
-        loadFoldResult();
-
         if (frontFoldResult == null
                 || backFoldResult == null) {
             return;

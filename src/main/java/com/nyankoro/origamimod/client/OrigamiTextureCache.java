@@ -393,6 +393,34 @@ public final class OrigamiTextureCache {
         }
     }
 
+    /*
+     * GPUへロード済みの場合だけ返す。
+     *
+     * Disk I/Oや新規Texture生成は行わないため、
+     * Rendererから毎フレーム呼び出せる。
+     *
+     * LinkedHashMapがaccess-orderなので、
+     * 使用中のTextureはLRU上でも新しい扱いになる。
+     */
+    public static synchronized TexturePair getIfLoaded(
+            String visualAssetId
+    ) {
+
+        LoadedEntry entry =
+                LOADED.get(
+                        visualAssetId
+                );
+
+
+        if (entry == null) {
+
+            return null;
+        }
+
+
+        return entry.textures();
+    }
+
 
     public static synchronized boolean isLoaded(
             String visualAssetId
