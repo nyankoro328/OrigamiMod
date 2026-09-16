@@ -8,6 +8,8 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 
 import java.util.function.Consumer;
+import java.util.Locale;
+import java.util.function.Consumer;
 
 import com.nyankoro.origamimod.OrigamiMod;
 
@@ -17,6 +19,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.phys.Vec3;
+
 
 
 /*
@@ -30,6 +33,9 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class OrigamiItem
         extends Item {
+
+    private static final double WALL_RENDER_OFFSET =
+            0.01;
 
     public OrigamiItem(
             Properties properties
@@ -127,47 +133,139 @@ public final class OrigamiItem
 
 
         /*
-         * ここまで来るのは
+         * 実際に折り紙を表示する予定位置。
          *
-         * NORTH
-         * SOUTH
-         * EAST
-         * WEST
-         *
-         * の4方向だけ。
+         * クリック位置そのものではなく、
+         * 壁面から少しだけ外側へずらす。
          */
+        Vec3 placementPosition =
+                calculateWallPosition(
+                        clickLocation,
+                        clickedFace
+                );
+
+
+        /*
+         * 壁の外側を向く水平角度。
+         *
+         * SOUTH =   0
+         * WEST  =  90
+         * NORTH = 180
+         * EAST  = 270
+         */
+        float wallYaw =
+                calculateWallYaw(
+                        clickedFace
+                );
+
+
         if (context.getPlayer()
                 instanceof ServerPlayer player) {
 
             OrigamiMod.LOGGER.info(
-                    "Origami wall placement candidate: "
+                    "Origami wall placement calculated: "
                             + "player={}, "
                             + "block={}, "
                             + "face={}, "
-                            + "hit={}",
+                            + "position={}, "
+                            + "yaw={}",
                     player.getName()
                             .getString(),
                     clickedPos,
                     clickedFace,
-                    clickLocation
+                    placementPosition,
+                    wallYaw
             );
 
 
             player.sendSystemMessage(
                     Component.literal(
-                            "壁掛け位置を検出: "
-                                    + clickedPos.getX()
-                                    + ", "
-                                    + clickedPos.getY()
-                                    + ", "
-                                    + clickedPos.getZ()
-                                    + " / "
-                                    + clickedFace
+                            String.format(
+                                    Locale.ROOT,
+                                    "表示予定位置: %.3f, %.3f, %.3f / %s / yaw=%.0f",
+                                    placementPosition.x(),
+                                    placementPosition.y(),
+                                    placementPosition.z(),
+                                    clickedFace,
+                                    wallYaw
+                            )
                     )
             );
         }
 
 
         return InteractionResult.SUCCESS;
+    }
+
+    /*
+     * クリック位置から、
+     * 壁より少し外側の表示予定位置を求める。
+     */
+    private static Vec3 calculateWallPosition(
+            Vec3 clickLocation,
+            Direction face
+    ) {
+
+        return switch (face) {
+
+            case NORTH ->
+                    clickLocation.add(
+                            0.0,
+                            0.0,
+                            -WALL_RENDER_OFFSET
+                    );
+
+            case SOUTH ->
+                    clickLocation.add(
+                            0.0,
+                            0.0,
+                            WALL_RENDER_OFFSET
+                    );
+
+            case EAST ->
+                    clickLocation.add(
+                            WALL_RENDER_OFFSET,
+                            0.0,
+                            0.0
+                    );
+
+            case WEST ->
+                    clickLocation.add(
+                            -WALL_RENDER_OFFSET,
+                            0.0,
+                            0.0
+                    );
+
+            default ->
+                    clickLocation;
+        };
+    }
+
+
+    /*
+     * Minecraftの水平向きを
+     * 0～360度のyawとして表す。
+     */
+    private static float calculateWallYaw(
+            Direction face
+    ) {
+
+        return switch (face) {
+
+            case SOUTH ->
+                    0.0F;
+
+            case WEST ->
+                    90.0F;
+
+            case NORTH ->
+                    180.0F;
+
+            case EAST ->
+                    270.0F;
+
+            default ->
+                    0.0F;
+        };
     }
 }
