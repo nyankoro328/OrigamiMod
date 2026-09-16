@@ -21,6 +21,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+
 
 /*
  * 壁へ設置された折り紙1個を表すEntity。
@@ -112,6 +115,21 @@ public final class OrigamiDisplayEntity
                     OrigamiDisplayEntity.class,
                     EntityDataSerializers.INT
             );
+
+    /*
+     * 壁掛け折り紙の初期Hitbox。
+     *
+     * 横幅・高さは現在の表示サイズ1.5 block。
+     * 厚さは絵画風にかなり薄くする。
+     */
+    private static final double HITBOX_WIDTH =
+            1.5;
+
+    private static final double HITBOX_HEIGHT =
+            1.5;
+
+    private static final double HITBOX_THICKNESS =
+            1.0 / 16.0;
 
 
     public OrigamiDisplayEntity(
@@ -324,6 +342,17 @@ public final class OrigamiDisplayEntity
 
         this.setXRot(
                 0.0F
+        );
+
+        /*
+         * 壁方向が変わったため、
+         * NORTH/SOUTH用とEAST/WEST用の
+         * Hitboxを作り直す。
+         */
+        this.setBoundingBox(
+                makeBoundingBox(
+                        this.position()
+                )
         );
     }
 
@@ -682,6 +711,118 @@ public final class OrigamiDisplayEntity
 
         this.setNoGravity(
                 true
+        );
+    }
+
+    /*
+     * 折り紙画像に合わせた薄いHitbox。
+     *
+     * Entity positionを画像中心として扱う。
+     *
+     * NORTH / SOUTH:
+     *   X方向に広く、Z方向に薄い。
+     *
+     * EAST / WEST:
+     *   Z方向に広く、X方向に薄い。
+     */
+    @Override
+    protected AABB makeBoundingBox(
+            Vec3 position
+    ) {
+
+        double halfWidth =
+                HITBOX_WIDTH
+                        * 0.5;
+
+        double halfHeight =
+                HITBOX_HEIGHT
+                        * 0.5;
+
+        double halfThickness =
+                HITBOX_THICKNESS
+                        * 0.5;
+
+
+        /*
+         * SOUTH / NORTHではyawが
+         * 0 / 180付近になる。
+         *
+         * EAST / WESTでは
+         * 90 / 270付近になる。
+         *
+         * Entity生成途中でも安全に使えるよう、
+         * SynchedEntityDataではなくyawから判断する。
+         */
+        double absoluteCos =
+                Math.abs(
+                        Math.cos(
+                                Math.toRadians(
+                                        this.getYRot()
+                                )
+                        )
+                );
+
+
+        /*
+         * NORTH / SOUTH
+         *
+         * 壁面:
+         *   X-Y平面
+         *
+         * 厚さ:
+         *   Z方向
+         */
+        if (absoluteCos >= 0.5) {
+
+            return new AABB(
+                    position.x
+                            - halfWidth,
+
+                    position.y
+                            - halfHeight,
+
+                    position.z
+                            - halfThickness,
+
+                    position.x
+                            + halfWidth,
+
+                    position.y
+                            + halfHeight,
+
+                    position.z
+                            + halfThickness
+            );
+        }
+
+
+        /*
+         * EAST / WEST
+         *
+         * 壁面:
+         *   Z-Y平面
+         *
+         * 厚さ:
+         *   X方向
+         */
+        return new AABB(
+                position.x
+                        - halfThickness,
+
+                position.y
+                        - halfHeight,
+
+                position.z
+                        - halfWidth,
+
+                position.x
+                        + halfThickness,
+
+                position.y
+                        + halfHeight,
+
+                position.z
+                        + halfWidth
         );
     }
 

@@ -362,15 +362,6 @@ public final class OrigamiDisplayEntityRenderer
          * Entityの当たり判定中央へ合わせる。
          */
         poseStack.pushPose();
-
-
-        poseStack.translate(
-                0.0F,
-                halfHeight,
-                0.0F
-        );
-
-
         /*
          * クリック位置を画像中央として描画する。
          *
