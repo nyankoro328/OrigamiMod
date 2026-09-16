@@ -70,13 +70,13 @@ public final class OrigamiItem
     /*
      * 折り紙アイテムをブロック面に使用したときの処理。
      *
-     * 現段階では壁掛けそのものは生成せず、
+     * 現段階では壁掛けそのものは生成しない。
      *
-     * ・クリックしたブロック
-     * ・クリックした面
-     * ・正確なクリック位置
+     * NORTH / SOUTH / EAST / WEST:
+     *   壁掛け候補として受け付ける。
      *
-     * を取得できることだけ確認する。
+     * UP / DOWN:
+     *   床・天井なので拒否する。
      */
     @Override
     public InteractionResult useOn(
@@ -94,17 +94,53 @@ public final class OrigamiItem
 
 
         /*
-         * メッセージとログはサーバー側だけで出す。
+         * 床と天井には壁掛けできない。
+         */
+        if (clickedFace == Direction.UP
+                || clickedFace == Direction.DOWN) {
+
+            if (context.getPlayer()
+                    instanceof ServerPlayer player) {
+
+                OrigamiMod.LOGGER.info(
+                        "Rejected origami wall placement: "
+                                + "player={}, "
+                                + "block={}, "
+                                + "face={}",
+                        player.getName()
+                                .getString(),
+                        clickedPos,
+                        clickedFace
+                );
+
+
+                player.sendSystemMessage(
+                        Component.literal(
+                                "折り紙は壁面にのみ設置できます"
+                        )
+                );
+            }
+
+
+            return InteractionResult.FAIL;
+        }
+
+
+        /*
+         * ここまで来るのは
          *
-         * クライアント側でもuseOnは呼ばれるため、
-         * ServerPlayerで判定しないと
-         * 二重処理の原因になり得る。
+         * NORTH
+         * SOUTH
+         * EAST
+         * WEST
+         *
+         * の4方向だけ。
          */
         if (context.getPlayer()
                 instanceof ServerPlayer player) {
 
             OrigamiMod.LOGGER.info(
-                    "Origami item used on block: "
+                    "Origami wall placement candidate: "
                             + "player={}, "
                             + "block={}, "
                             + "face={}, "
@@ -119,7 +155,7 @@ public final class OrigamiItem
 
             player.sendSystemMessage(
                     Component.literal(
-                            "折り紙使用検出: "
+                            "壁掛け位置を検出: "
                                     + clickedPos.getX()
                                     + ", "
                                     + clickedPos.getY()
