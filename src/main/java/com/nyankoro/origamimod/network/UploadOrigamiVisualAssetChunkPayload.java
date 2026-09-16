@@ -223,6 +223,8 @@ public record UploadOrigamiVisualAssetChunkPayload(
 
         OrigamiVisualAssetUploadManager.UploadResult result =
                 OrigamiVisualAssetUploadManager.acceptChunk(
+                        player.level()
+                                .getServer(),
                         player.getUUID(),
                         payload
                 );

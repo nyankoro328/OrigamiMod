@@ -16,6 +16,8 @@ import java.util.UUID;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.minecraft.server.MinecraftServer;
+
 
 /*
  * Clientから送られてきた
@@ -29,15 +31,6 @@ public final class OrigamiVisualAssetUploadManager {
     private static final int MAX_IMAGE_DIMENSION =
             1024;
 
-
-    /*
-     * 今は一時キャッシュなので
-     * 無制限には保持しない。
-     */
-    private static final int MAX_CACHED_ASSETS =
-            32;
-
-
     /*
      * Playerごとに同時アップロードは1作品。
      */
@@ -47,15 +40,6 @@ public final class OrigamiVisualAssetUploadManager {
             >
             PENDING =
             new ConcurrentHashMap<>();
-
-
-    private static final Map<
-            String,
-            CachedAsset
-            >
-            CACHE =
-            new ConcurrentHashMap<>();
-
 
     private OrigamiVisualAssetUploadManager() {
     }
@@ -103,6 +87,7 @@ public final class OrigamiVisualAssetUploadManager {
 
 
     public static UploadResult acceptChunk(
+            MinecraftServer server,
             UUID playerId,
             UploadOrigamiVisualAssetChunkPayload payload
     ) {
@@ -126,13 +111,32 @@ public final class OrigamiVisualAssetUploadManager {
         }
 
 
-        if (CACHE.containsKey(
+        if (OrigamiVisualAssetStore.exists(
+                server,
                 payload.visualAssetId()
         )) {
 
+            /*
+             * FRONTの最初のchunkだけログを出す。
+             *
+             * 4chunkすべてで同じログが
+             * 出ないようにするため。
+             */
+            if (payload.side()
+                    == UploadOrigamiVisualAssetChunkPayload.Side.FRONT
+                    && payload.chunkIndex() == 0) {
+
+                OrigamiMod.LOGGER.info(
+                        "Origami visual asset already persisted: "
+                                + "assetId={}",
+                        payload.visualAssetId()
+                );
+            }
+
+
             return new UploadResult(
                     Status.ALREADY_CACHED,
-                    "already cached"
+                    "already persisted"
             );
         }
 
@@ -218,28 +222,12 @@ public final class OrigamiVisualAssetUploadManager {
             );
 
 
-            return validateAndCache(
+            return validateAndStore(
+                    server,
                     pending
             );
         }
     }
-
-
-    public static boolean contains(
-            String visualAssetId
-    ) {
-
-        return CACHE.containsKey(
-                visualAssetId
-        );
-    }
-
-
-    public static int cachedAssetCount() {
-
-        return CACHE.size();
-    }
-
 
     private static String validateMetadata(
             UploadOrigamiVisualAssetChunkPayload payload
@@ -320,7 +308,8 @@ public final class OrigamiVisualAssetUploadManager {
     }
 
 
-    private static UploadResult validateAndCache(
+    private static UploadResult validateAndStore(
+            MinecraftServer server,
             PendingUpload pending
     ) {
 
@@ -474,43 +463,61 @@ public final class OrigamiVisualAssetUploadManager {
             );
         }
 
+        final OrigamiVisualAssetStore.SaveResult saveResult;
 
-        if (!CACHE.containsKey(
-                pending.assetId
-        )
-                && CACHE.size()
-                >= MAX_CACHED_ASSETS) {
+
+        try {
+
+            saveResult =
+                    OrigamiVisualAssetStore.save(
+                            server,
+                            pending.assetId,
+                            front,
+                            back
+                    );
+
+        } catch (IOException e) {
+
+            OrigamiMod.LOGGER.error(
+                    "Failed to persist origami visual asset: "
+                            + "assetId={}",
+                    pending.assetId,
+                    e
+            );
+
 
             return rejected(
-                    "Temporary asset cache is full"
+                    "Could not persist visual asset"
             );
         }
 
 
-        CACHE.putIfAbsent(
-                pending.assetId,
-                new CachedAsset(
-                        frontInfo.width(),
-                        frontInfo.height(),
-                        front,
-                        back
-                )
-        );
+        /*
+         * 同時に別threadから
+         * 同じassetが保存されていた場合。
+         */
+        if (!saveResult.created()) {
+
+            return new UploadResult(
+                    Status.ALREADY_CACHED,
+                    "already persisted"
+            );
+        }
 
 
         OrigamiMod.LOGGER.info(
-                "Verified origami visual asset: "
+                "Persisted origami visual asset: "
                         + "assetId={}, "
                         + "size={}x{}, "
                         + "front={} bytes, "
                         + "back={} bytes, "
-                        + "cachedAssets={}",
+                        + "directory={}",
                 pending.assetId,
                 frontInfo.width(),
                 frontInfo.height(),
                 front.length,
                 back.length,
-                CACHE.size()
+                saveResult.directory()
         );
 
 
