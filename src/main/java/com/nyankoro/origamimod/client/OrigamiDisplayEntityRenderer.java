@@ -292,6 +292,19 @@ public final class OrigamiDisplayEntityRenderer
                 height
                         * 0.5F;
 
+        /*
+         * Entityのpositionは当たり判定の底面中央。
+         *
+         * Quadは中心基準で作っているため、
+         * 半分の高さだけ上へ移動して
+         * Entityの当たり判定中央へ合わせる。
+         */
+        poseStack.translate(
+                0.0F,
+                halfHeight,
+                0.0F
+        );
+
 
         poseStack.pushPose();
 
