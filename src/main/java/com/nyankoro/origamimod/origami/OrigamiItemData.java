@@ -8,25 +8,23 @@ import net.minecraft.network.codec.StreamCodec;
 
 import java.util.Objects;
 
+
 /*
- * 1個の折り紙ItemStackが持つ基本情報。
+ * 1個のOrigami ItemStackが持つ情報。
  *
- * 今の段階では、
+ * origamiId:
+ *   将来の「作品そのもの」の識別ID。
+ *   現段階では未使用。
  *
- * ・どの折り紙か
- * ・用途
- * ・表色
- * ・裏色
- * ・輪郭色
- * ・完成品の2D角度
+ * visualAssetId:
+ *   front.png / back.png の描画Assetを
+ *   識別するSHA-256 ID。
  *
- * を保持する。
- *
- * CP本体や巨大な画像データは
- * ItemStackには直接保存しない。
+ * 画像本体はItemStackには保存しない。
  */
 public record OrigamiItemData(
         String origamiId,
+        String visualAssetId,
         String useType,
         int frontColor,
         int backColor,
@@ -34,12 +32,17 @@ public record OrigamiItemData(
         int angle
 ) {
 
+    public static final String UNASSIGNED =
+            "unassigned";
+
+
     /*
-     * /give などで普通に生成したときの初期値。
+     * /giveなどで通常生成された場合。
      */
     public static final OrigamiItemData DEFAULT =
             new OrigamiItemData(
-                    "unassigned",
+                    UNASSIGNED,
+                    UNASSIGNED,
                     "WALL",
                     0xFFFFC857,
                     0xFF4EA5D9,
@@ -50,6 +53,10 @@ public record OrigamiItemData(
 
     /*
      * ワールド保存用。
+     *
+     * visual_asset_idはoptionalにしておき、
+     * このフィールド追加前に作られた
+     * 開発用ItemStackも読み込めるようにする。
      */
     public static final Codec<OrigamiItemData> CODEC =
             RecordCodecBuilder.create(
@@ -61,6 +68,15 @@ public record OrigamiItemData(
                                                     )
                                                     .forGetter(
                                                             OrigamiItemData::origamiId
+                                                    ),
+
+                                            Codec.STRING
+                                                    .optionalFieldOf(
+                                                            "visual_asset_id",
+                                                            UNASSIGNED
+                                                    )
+                                                    .forGetter(
+                                                            OrigamiItemData::visualAssetId
                                                     ),
 
                                             Codec.STRING
@@ -111,17 +127,22 @@ public record OrigamiItemData(
 
 
     /*
-     * サーバー ↔ クライアント同期用。
+     * Server <-> Client同期用。
      */
     public static final StreamCodec<
             RegistryFriendlyByteBuf,
             OrigamiItemData
-            > STREAM_CODEC =
+            >
+            STREAM_CODEC =
             StreamCodec.of(
                     (buffer, data) -> {
 
                         buffer.writeUtf(
                                 data.origamiId()
+                        );
+
+                        buffer.writeUtf(
+                                data.visualAssetId()
                         );
 
                         buffer.writeUtf(
@@ -149,6 +170,7 @@ public record OrigamiItemData(
                             new OrigamiItemData(
                                     buffer.readUtf(),
                                     buffer.readUtf(),
+                                    buffer.readUtf(),
                                     buffer.readInt(),
                                     buffer.readInt(),
                                     buffer.readInt(),
@@ -157,9 +179,6 @@ public record OrigamiItemData(
             );
 
 
-    /*
-     * 不正値を最低限補正する。
-     */
     public OrigamiItemData {
 
         Objects.requireNonNull(
@@ -167,22 +186,47 @@ public record OrigamiItemData(
         );
 
         Objects.requireNonNull(
+                visualAssetId
+        );
+
+        Objects.requireNonNull(
                 useType
         );
 
+
         if (origamiId.isBlank()) {
+
             origamiId =
-                    "unassigned";
+                    UNASSIGNED;
         }
 
+
+        if (visualAssetId.isBlank()) {
+
+            visualAssetId =
+                    UNASSIGNED;
+        }
+
+
         if (useType.isBlank()) {
+
             useType =
                     "WALL";
         }
 
+
         angle =
                 normalizeAngle(
                         angle
+                );
+    }
+
+
+    public boolean hasVisualAsset() {
+
+        return OrigamiVisualAssetId
+                .isValidFormat(
+                        visualAssetId
                 );
     }
 
@@ -194,10 +238,13 @@ public record OrigamiItemData(
         int result =
                 angle % 360;
 
+
         if (result < 0) {
+
             result +=
                     360;
         }
+
 
         return result;
     }

@@ -24,7 +24,7 @@ public final class OrigamiNetwork {
          */
         PayloadRegistrar registrar =
                 event.registrar(
-                        "4"
+                        "5"
                 );
 
 

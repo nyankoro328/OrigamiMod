@@ -9,7 +9,7 @@ import net.minecraft.world.item.component.TooltipDisplay;
 
 import java.util.function.Consumer;
 import java.util.Locale;
-import java.util.function.Consumer;
+import com.nyankoro.origamimod.origami.OrigamiItemData;
 
 import com.nyankoro.origamimod.OrigamiMod;
 
@@ -71,6 +71,54 @@ public final class OrigamiItem
                                 ChatFormatting.GRAY
                         )
         );
+
+
+        OrigamiItemData data =
+                stack.getOrDefault(
+                        OrigamiMod.ORIGAMI_DATA.get(),
+                        OrigamiItemData.DEFAULT
+                );
+
+
+        tooltipAdder.accept(
+                Component.literal(
+                                "用途: "
+                                        + data.useType()
+                        )
+                        .withStyle(
+                                ChatFormatting.DARK_GRAY
+                        )
+        );
+
+
+        if (data.hasVisualAsset()) {
+
+            tooltipAdder.accept(
+                    Component.literal(
+                                    "画像ID: "
+                                            + data
+                                            .visualAssetId()
+                                            .substring(
+                                                    0,
+                                                    12
+                                            )
+                            )
+                            .withStyle(
+                                    ChatFormatting.DARK_GRAY
+                            )
+            );
+
+        } else {
+
+            tooltipAdder.accept(
+                    Component.literal(
+                                    "画像ID: 未設定"
+                            )
+                            .withStyle(
+                                    ChatFormatting.DARK_GRAY
+                            )
+            );
+        }
     }
 
     /*

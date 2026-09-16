@@ -1,7 +1,9 @@
 package com.nyankoro.origamimod.network;
 
 import com.nyankoro.origamimod.OrigamiMod;
+import com.nyankoro.origamimod.origami.OrigamiItemData;
 import com.nyankoro.origamimod.origami.OrigamiUseType;
+import com.nyankoro.origamimod.origami.OrigamiVisualAssetId;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -21,13 +23,12 @@ import java.util.Locale;
  *
  * 折り紙アイテムの作成要求。
  *
- * CP本体はこのPayloadでは送信しない。
- *
- * 大容量データは今後、
- * チャンク分割方式で別途送信する。
+ * PNGやCP本体は含めず、
+ * visualAssetIdだけをItemStackへ保存する。
  */
 public record CreateOrigamiItemPayload(
         String cpFileName,
+        String visualAssetId,
         OrigamiUseType useType,
         int frontColor,
         int backColor,
@@ -35,19 +36,16 @@ public record CreateOrigamiItemPayload(
         int angle
 ) implements CustomPacketPayload {
 
-    /*
-     * クライアント側で読み込むCPの
-     * 異常サイズ防止用。
-     *
-     * CP自体をこのPayloadで
-     * 送るための上限ではない。
-     */
     public static final int MAX_CP_BYTES =
             1024 * 1024;
 
 
     public static final int MAX_FILE_NAME_LENGTH =
             128;
+
+
+    public static final int MAX_ASSET_ID_LENGTH =
+            64;
 
 
     public static final
@@ -80,6 +78,11 @@ public record CreateOrigamiItemPayload(
 
         buffer.writeUtf(
                 payload.cpFileName()
+        );
+
+
+        buffer.writeUtf(
+                payload.visualAssetId()
         );
 
 
@@ -116,6 +119,12 @@ public record CreateOrigamiItemPayload(
                 );
 
 
+        String visualAssetId =
+                buffer.readUtf(
+                        MAX_ASSET_ID_LENGTH
+                );
+
+
         OrigamiUseType useType =
                 buffer.readEnum(
                         OrigamiUseType.class
@@ -137,6 +146,7 @@ public record CreateOrigamiItemPayload(
 
         return new CreateOrigamiItemPayload(
                 cpFileName,
+                visualAssetId,
                 useType,
                 frontColor,
                 backColor,
@@ -155,9 +165,6 @@ public record CreateOrigamiItemPayload(
     }
 
 
-    /*
-     * サーバー側処理。
-     */
     public static void handle(
             CreateOrigamiItemPayload payload,
             IPayloadContext context
@@ -184,17 +191,33 @@ public record CreateOrigamiItemPayload(
         }
 
 
-        /*
-         * 現段階では引き続き
-         * 汎用OrigamiItemを1個生成するだけ。
-         *
-         * visualAssetIdなどをItemStackへ
-         * 保存する処理はまだ追加しない。
-         */
         ItemStack stack =
                 new ItemStack(
                         OrigamiMod.ORIGAMI_ITEM.get()
                 );
+
+
+        /*
+         * ItemStackへ作品情報を保存。
+         *
+         * origamiIdはまだ未使用。
+         *
+         * visualAssetIdが
+         * Server保存済みfront/back PNGへの参照になる。
+         */
+        stack.set(
+                OrigamiMod.ORIGAMI_DATA.get(),
+                new OrigamiItemData(
+                        OrigamiItemData.UNASSIGNED,
+                        payload.visualAssetId(),
+                        payload.useType()
+                                .name(),
+                        payload.frontColor(),
+                        payload.backColor(),
+                        payload.edgeColor(),
+                        payload.angle()
+                )
+        );
 
 
         boolean inserted =
@@ -214,14 +237,16 @@ public record CreateOrigamiItemPayload(
 
 
         OrigamiMod.LOGGER.info(
-                "Received origami create request: "
+                "Created origami item: "
                         + "player={}, "
                         + "file={}, "
+                        + "visualAssetId={}, "
                         + "useType={}, "
                         + "angle={}",
                 player.getName()
                         .getString(),
                 payload.cpFileName(),
+                payload.visualAssetId(),
                 payload.useType(),
                 payload.angle()
         );
@@ -257,6 +282,15 @@ public record CreateOrigamiItemPayload(
                 )
                 .endsWith(
                         ".cp"
+                )) {
+
+            return false;
+        }
+
+
+        if (!OrigamiVisualAssetId
+                .isValidFormat(
+                        payload.visualAssetId()
                 )) {
 
             return false;
