@@ -879,7 +879,6 @@ public final class OrigamiSettingsScreen
         ClientPacketDistributor.sendToServer(
                 new CreateOrigamiItemPayload(
                         cpFileName,
-                        cpData,
                         useType,
                         appearance.frontColor(),
                         appearance.backColor(),

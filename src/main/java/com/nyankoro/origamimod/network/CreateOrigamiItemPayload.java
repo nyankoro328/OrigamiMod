@@ -17,15 +17,17 @@ import java.util.Locale;
 
 
 /*
- * 折り紙設定画面からサーバーへ送る
- * 「折り紙をアイテム化してほしい」という要求。
+ * Client -> Server
  *
- * 最終的には、このデータを
- * サーバー側の折り紙データ保存処理へ渡す。
+ * 折り紙アイテムの作成要求。
+ *
+ * CP本体はこのPayloadでは送信しない。
+ *
+ * 大容量データは今後、
+ * チャンク分割方式で別途送信する。
  */
 public record CreateOrigamiItemPayload(
         String cpFileName,
-        byte[] cpData,
         OrigamiUseType useType,
         int frontColor,
         int backColor,
@@ -34,13 +36,15 @@ public record CreateOrigamiItemPayload(
 ) implements CustomPacketPayload {
 
     /*
-     * 不正または異常に大きいCPを
-     * 無制限に受け取らないための上限。
+     * クライアント側で読み込むCPの
+     * 異常サイズ防止用。
      *
-     * 現段階では1MiB。
+     * CP自体をこのPayloadで
+     * 送るための上限ではない。
      */
     public static final int MAX_CP_BYTES =
             1024 * 1024;
+
 
     public static final int MAX_FILE_NAME_LENGTH =
             128;
@@ -69,9 +73,6 @@ public record CreateOrigamiItemPayload(
             );
 
 
-    /*
-     * Client -> Network
-     */
     private static void encode(
             RegistryFriendlyByteBuf buffer,
             CreateOrigamiItemPayload payload
@@ -81,24 +82,11 @@ public record CreateOrigamiItemPayload(
                 payload.cpFileName()
         );
 
-        /*
-         * CP本体。
-         *
-         * サイズを明示的に書いてから
-         * 生バイト列を書き込む。
-         */
-        buffer.writeVarInt(
-                payload.cpData().length
-        );
-
-        buffer.writeBytes(
-                payload.cpData()
-        );
-
 
         buffer.writeEnum(
                 payload.useType()
         );
+
 
         buffer.writeInt(
                 payload.frontColor()
@@ -118,9 +106,6 @@ public record CreateOrigamiItemPayload(
     }
 
 
-    /*
-     * Network -> Server
-     */
     private static CreateOrigamiItemPayload decode(
             RegistryFriendlyByteBuf buffer
     ) {
@@ -129,30 +114,6 @@ public record CreateOrigamiItemPayload(
                 buffer.readUtf(
                         MAX_FILE_NAME_LENGTH
                 );
-
-
-        int cpLength =
-                buffer.readVarInt();
-
-
-        if (cpLength <= 0
-                || cpLength > MAX_CP_BYTES) {
-
-            throw new IllegalArgumentException(
-                    "Invalid CP data size: "
-                            + cpLength
-            );
-        }
-
-
-        byte[] cpData =
-                new byte[
-                        cpLength
-                        ];
-
-        buffer.readBytes(
-                cpData
-        );
 
 
         OrigamiUseType useType =
@@ -176,7 +137,6 @@ public record CreateOrigamiItemPayload(
 
         return new CreateOrigamiItemPayload(
                 cpFileName,
-                cpData,
                 useType,
                 frontColor,
                 backColor,
@@ -225,12 +185,11 @@ public record CreateOrigamiItemPayload(
 
 
         /*
-         * 現段階ではまず
-         * サーバーがItemStackを生成できることを確認する。
+         * 現段階では引き続き
+         * 汎用OrigamiItemを1個生成するだけ。
          *
-         * 次の段階で、
-         * payloadの設定値をData Componentとして
-         * ItemStackへ保存する。
+         * visualAssetIdなどをItemStackへ
+         * 保存する処理はまだ追加しない。
          */
         ItemStack stack =
                 new ItemStack(
@@ -245,10 +204,6 @@ public record CreateOrigamiItemPayload(
                         );
 
 
-        /*
-         * インベントリ満杯なら
-         * プレイヤーの足元へ落とす。
-         */
         if (!inserted) {
 
             player.drop(
@@ -262,13 +217,11 @@ public record CreateOrigamiItemPayload(
                 "Received origami create request: "
                         + "player={}, "
                         + "file={}, "
-                        + "bytes={}, "
                         + "useType={}, "
                         + "angle={}",
                 player.getName()
                         .getString(),
                 payload.cpFileName(),
-                payload.cpData().length,
                 payload.useType(),
                 payload.angle()
         );
@@ -286,15 +239,6 @@ public record CreateOrigamiItemPayload(
     private static boolean isValid(
             CreateOrigamiItemPayload payload
     ) {
-
-        if (payload.cpData() == null
-                || payload.cpData().length == 0
-                || payload.cpData().length
-                > MAX_CP_BYTES) {
-
-            return false;
-        }
-
 
         if (payload.cpFileName() == null
                 || payload.cpFileName()
@@ -314,6 +258,12 @@ public record CreateOrigamiItemPayload(
                 .endsWith(
                         ".cp"
                 )) {
+
+            return false;
+        }
+
+
+        if (payload.useType() == null) {
 
             return false;
         }
