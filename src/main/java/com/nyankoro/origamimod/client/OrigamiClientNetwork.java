@@ -66,6 +66,11 @@ public final class OrigamiClientNetwork {
 
             case COMPLETE -> {
 
+                OrigamiVisualAssetAutoLoader
+                        .markDownloadComplete(
+                                payload.visualAssetId()
+                        );
+
                 OrigamiMod.LOGGER.info(
                         "Origami visual asset download complete: "
                                 + "assetId={}, "
