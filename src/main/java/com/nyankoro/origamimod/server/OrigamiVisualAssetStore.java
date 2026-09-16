@@ -55,6 +55,9 @@ public final class OrigamiVisualAssetStore {
                     * 1024L
                     * 1024L;
 
+    private static final int MAX_SINGLE_IMAGE_BYTES =
+            1024 * 1024;
+
 
     /*
      * 複数network threadから
@@ -111,6 +114,82 @@ public final class OrigamiVisualAssetStore {
                 && Files.isRegularFile(
                 directory.resolve(
                         BACK_FILE
+                )
+        );
+    }
+
+    /*
+     * 保存済みの表裏PNGを読み込む。
+     *
+     * assetが存在しない場合はnull。
+     */
+    public static AssetData read(
+            MinecraftServer server,
+            String visualAssetId
+    ) throws IOException {
+
+        validateAssetId(
+                visualAssetId
+        );
+
+
+        Path directory =
+                assetDirectory(
+                        server,
+                        visualAssetId
+                );
+
+
+        Path frontPath =
+                directory.resolve(
+                        FRONT_FILE
+                );
+
+        Path backPath =
+                directory.resolve(
+                        BACK_FILE
+                );
+
+
+        if (!Files.isRegularFile(
+                frontPath
+        )
+                || !Files.isRegularFile(
+                backPath
+        )) {
+
+            return null;
+        }
+
+
+        long frontSize =
+                Files.size(
+                        frontPath
+                );
+
+        long backSize =
+                Files.size(
+                        backPath
+                );
+
+
+        if (frontSize <= 0
+                || frontSize > MAX_SINGLE_IMAGE_BYTES
+                || backSize <= 0
+                || backSize > MAX_SINGLE_IMAGE_BYTES) {
+
+            throw new IOException(
+                    "Stored origami visual asset has invalid size"
+            );
+        }
+
+
+        return new AssetData(
+                Files.readAllBytes(
+                        frontPath
+                ),
+                Files.readAllBytes(
+                        backPath
                 )
         );
     }
@@ -294,6 +373,35 @@ public final class OrigamiVisualAssetStore {
                         temporaryDirectory
                 );
             }
+        }
+    }
+
+    public record AssetData(
+            byte[] frontPng,
+            byte[] backPng
+    ) {
+
+        public AssetData {
+
+            frontPng =
+                    frontPng.clone();
+
+            backPng =
+                    backPng.clone();
+        }
+
+
+        @Override
+        public byte[] frontPng() {
+
+            return frontPng.clone();
+        }
+
+
+        @Override
+        public byte[] backPng() {
+
+            return backPng.clone();
         }
     }
 

@@ -24,7 +24,7 @@ public final class OrigamiNetwork {
          */
         PayloadRegistrar registrar =
                 event.registrar(
-                        "3"
+                        "4"
                 );
 
 
@@ -35,6 +35,15 @@ public final class OrigamiNetwork {
                 CreateOrigamiItemPayload.TYPE,
                 CreateOrigamiItemPayload.STREAM_CODEC,
                 CreateOrigamiItemPayload::handle
+        );
+        /*
+         * Server -> Client
+         *
+         * handler自体はClient専用イベント側で登録する。
+         */
+        registrar.playToClient(
+                OrigamiVisualAssetDownloadChunkPayload.TYPE,
+                OrigamiVisualAssetDownloadChunkPayload.STREAM_CODEC
         );
         /*
          * PNGチャンクの再構築・decode・hash計算は
@@ -51,6 +60,18 @@ public final class OrigamiNetwork {
                 UploadOrigamiVisualAssetChunkPayload.TYPE,
                 UploadOrigamiVisualAssetChunkPayload.STREAM_CODEC,
                 UploadOrigamiVisualAssetChunkPayload::handle
+        );
+
+        /*
+         * Client -> Server
+         *
+         * 保存済み画像を要求する。
+         * Disk I/OがあるためNETWORK thread。
+         */
+        uploadRegistrar.playToServer(
+                RequestOrigamiVisualAssetPayload.TYPE,
+                RequestOrigamiVisualAssetPayload.STREAM_CODEC,
+                RequestOrigamiVisualAssetPayload::handle
         );
     }
 }
