@@ -2,6 +2,7 @@ package com.nyankoro.origamimod.network;
 
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.neoforged.neoforge.network.registration.HandlerThread;
 
 
 /*
@@ -23,7 +24,7 @@ public final class OrigamiNetwork {
          */
         PayloadRegistrar registrar =
                 event.registrar(
-                        "2"
+                        "3"
                 );
 
 
@@ -34,6 +35,22 @@ public final class OrigamiNetwork {
                 CreateOrigamiItemPayload.TYPE,
                 CreateOrigamiItemPayload.STREAM_CODEC,
                 CreateOrigamiItemPayload::handle
+        );
+        /*
+         * PNGチャンクの再構築・decode・hash計算は
+         * main server tickを止めないよう
+         * network threadで処理する。
+         */
+        PayloadRegistrar uploadRegistrar =
+                registrar.executesOn(
+                        HandlerThread.NETWORK
+                );
+
+
+        uploadRegistrar.playToServer(
+                UploadOrigamiVisualAssetChunkPayload.TYPE,
+                UploadOrigamiVisualAssetChunkPayload.STREAM_CODEC,
+                UploadOrigamiVisualAssetChunkPayload::handle
         );
     }
 }

@@ -10,15 +10,11 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-
-import java.util.HexFormat;
 import java.util.List;
+import com.nyankoro.origamimod.origami.OrigamiVisualAssetId;
 
 
 /*
@@ -44,9 +40,6 @@ public final class OrigamiPngExporter {
      * 将来、画像生成方式を大きく変更した場合は
      * この値を変更できる。
      */
-    private static final String ASSET_ID_VERSION =
-            "origamimod-visual-asset-v1";
-
 
     private OrigamiPngExporter() {
     }
@@ -160,7 +153,9 @@ public final class OrigamiPngExporter {
          * 実際の見た目を基準に識別できる。
          */
         String visualAssetId =
-                calculateVisualAssetId(
+                OrigamiVisualAssetId.calculate(
+                        IMAGE_SIZE,
+                        IMAGE_SIZE,
                         frontRendered.pixels(),
                         backRendered.pixels()
                 );
@@ -350,149 +345,4 @@ public final class OrigamiPngExporter {
         );
     }
 
-
-    /*
-     * 表裏画像の実際のARGBピクセルから
-     * SHA-256 IDを生成する。
-     *
-     * FRONTとBACKの順番もIDへ含まれるため、
-     * 表裏を交換した画像は別assetになる。
-     */
-    private static String calculateVisualAssetId(
-            int[] frontPixels,
-            int[] backPixels
-    ) {
-
-        final MessageDigest digest;
-
-
-        try {
-
-            digest =
-                    MessageDigest.getInstance(
-                            "SHA-256"
-                    );
-
-        } catch (NoSuchAlgorithmException e) {
-
-            /*
-             * SHA-256はJava標準で必須なので、
-             * 通常ここには到達しない。
-             */
-            throw new IllegalStateException(
-                    "SHA-256 is not available",
-                    e
-            );
-        }
-
-
-        digest.update(
-                ASSET_ID_VERSION.getBytes(
-                        StandardCharsets.UTF_8
-                )
-        );
-
-
-        /*
-         * 画像サイズもIDへ含める。
-         */
-        updateInt(
-                digest,
-                IMAGE_SIZE
-        );
-
-        updateInt(
-                digest,
-                IMAGE_SIZE
-        );
-
-
-        /*
-         * FRONT開始マーカー。
-         */
-        digest.update(
-                (byte) 1
-        );
-
-
-        updatePixels(
-                digest,
-                frontPixels
-        );
-
-
-        /*
-         * BACK開始マーカー。
-         */
-        digest.update(
-                (byte) 2
-        );
-
-
-        updatePixels(
-                digest,
-                backPixels
-        );
-
-
-        return HexFormat.of()
-                .formatHex(
-                        digest.digest()
-                );
-    }
-
-
-    private static void updatePixels(
-            MessageDigest digest,
-            int[] pixels
-    ) {
-
-        updateInt(
-                digest,
-                pixels.length
-        );
-
-
-        for (int pixel :
-                pixels) {
-
-            /*
-             * ARGB intを
-             * 固定順序4byteとしてSHA-256へ渡す。
-             */
-            updateInt(
-                    digest,
-                    pixel
-            );
-        }
-    }
-
-
-    private static void updateInt(
-            MessageDigest digest,
-            int value
-    ) {
-
-        digest.update(
-                (byte) (
-                        value >>> 24
-                )
-        );
-
-        digest.update(
-                (byte) (
-                        value >>> 16
-                )
-        );
-
-        digest.update(
-                (byte) (
-                        value >>> 8
-                )
-        );
-
-        digest.update(
-                (byte) value
-        );
-    }
 }

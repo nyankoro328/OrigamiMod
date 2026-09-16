@@ -829,16 +829,12 @@ public final class OrigamiSettingsScreen
             return;
         }
 
-        /*
-         * 現在の折り紙を
-         * 表・裏PNGとして生成する。
-         *
-         * 現段階ではローカルへの
-         * デバッグ出力だけ。
-         */
+        OrigamiPngExporter.ExportResult exportResult;
+
+
         try {
 
-            OrigamiPngExporter.ExportResult exportResult =
+            exportResult =
                     OrigamiPngExporter.export(
                             front,
                             back,
@@ -870,6 +866,27 @@ public final class OrigamiSettingsScreen
 
             showCreateItemError(
                     "折り紙画像の生成に失敗しました"
+            );
+
+            return;
+        }
+
+        try {
+
+            OrigamiVisualAssetUploader.upload(
+                    exportResult
+            );
+
+        } catch (IllegalArgumentException e) {
+
+            OrigamiMod.LOGGER.error(
+                    "Failed to upload origami visual asset",
+                    e
+            );
+
+
+            showCreateItemError(
+                    "折り紙画像の送信に失敗しました"
             );
 
             return;
