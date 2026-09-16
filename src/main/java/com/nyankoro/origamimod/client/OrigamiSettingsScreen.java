@@ -847,9 +847,15 @@ public final class OrigamiSettingsScreen
 
 
             OrigamiMod.LOGGER.info(
-                    "Origami PNG exported: "
-                            + "front={}, "
-                            + "back={}",
+                    "Origami visual asset generated: "
+                            + "assetId={}, "
+                            + "front={} bytes, "
+                            + "back={} bytes, "
+                            + "frontPath={}, "
+                            + "backPath={}",
+                    exportResult.visualAssetId(),
+                    exportResult.frontByteLength(),
+                    exportResult.backByteLength(),
                     exportResult.frontPath(),
                     exportResult.backPath()
             );

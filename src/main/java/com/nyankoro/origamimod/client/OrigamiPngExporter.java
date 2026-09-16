@@ -7,68 +7,164 @@ import javax.imageio.ImageIO;
 
 import java.awt.image.BufferedImage;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+import java.util.HexFormat;
 import java.util.List;
 
 
 /*
  * OrigamiFoldResultを
- * PNG画像として書き出す。
+ * 表裏PNGへ変換する。
  *
- * 現段階では動作確認用。
- *
- * 将来的には、
- *
- * ・PNG byte[]
- * ・SHA-256 assetId
- * ・サーバー保存
- * ・クライアントキャッシュ
- *
- * へ発展させる。
+ * PNGファイルだけでなく、
+ * マルチプレイ同期で使用するbyte[]と
+ * visualAssetIdも生成する。
  */
 public final class OrigamiPngExporter {
 
     /*
-     * 最初は512x512固定。
-     *
-     * Rasterizer内部ではさらに
-     * SUPERSAMPLEされるため、
-     * 最終画像はアンチエイリアス済みになる。
+     * 現段階では512x512固定。
      */
-    private static final int IMAGE_SIZE =
+    public static final int IMAGE_SIZE =
             512;
+
+
+    /*
+     * visualAssetIdの仕様バージョン。
+     *
+     * 将来、画像生成方式を大きく変更した場合は
+     * この値を変更できる。
+     */
+    private static final String ASSET_ID_VERSION =
+            "origamimod-visual-asset-v1";
 
 
     private OrigamiPngExporter() {
     }
 
 
-    public record ExportResult(
-            Path frontPath,
-            Path backPath
+    /*
+     * PNG生成途中の内部データ。
+     *
+     * pixels:
+     *   assetId計算用の正規化されたARGB。
+     *
+     * pngBytes:
+     *   実際に保存・転送するPNG。
+     */
+    private record RenderedPng(
+            int[] pixels,
+            byte[] pngBytes
     ) {
     }
 
 
     /*
-     * 表面・裏面をそれぞれPNG化する。
+     * 外部へ返す生成結果。
      *
-     * 重要:
-     * 回転や拡大率は画像へ焼き込まない。
+     * visualAssetId:
+     *   折り紙作品そのもののIDではなく、
+     *   表裏画像の見た目を識別するID。
+     */
+    public record ExportResult(
+            String visualAssetId,
+            byte[] frontPng,
+            byte[] backPng,
+            Path frontPath,
+            Path backPath
+    ) {
+
+        public ExportResult {
+
+            frontPng =
+                    frontPng.clone();
+
+            backPng =
+                    backPng.clone();
+        }
+
+
+        /*
+         * 呼び出し側から内部配列を
+         * 書き換えられないようcloneを返す。
+         */
+        @Override
+        public byte[] frontPng() {
+
+            return frontPng.clone();
+        }
+
+
+        @Override
+        public byte[] backPng() {
+
+            return backPng.clone();
+        }
+
+
+        public int frontByteLength() {
+
+            return frontPng.length;
+        }
+
+
+        public int backByteLength() {
+
+            return backPng.length;
+        }
+    }
+
+
+    /*
+     * 表面・裏面をPNG化し、
+     * visualAssetIdを生成する。
      *
-     * それらは将来、
-     * OrigamiDisplayEntity側のTransformで
-     * 自由に変更できるようにする。
+     * デバッグ確認用として
+     * PNGファイルもローカルへ保存する。
      */
     public static ExportResult export(
             OrigamiFoldResult front,
             OrigamiFoldResult back,
             OrigamiAppearance appearance
     ) throws IOException {
+
+        RenderedPng frontRendered =
+                renderPng(
+                        front,
+                        appearance
+                );
+
+
+        RenderedPng backRendered =
+                renderPng(
+                        back,
+                        appearance
+                );
+
+
+        /*
+         * PNG圧縮結果そのものではなく、
+         * 正規化されたARGBピクセルから
+         * assetIdを生成する。
+         *
+         * これによりPNGエンコーダの差ではなく、
+         * 実際の見た目を基準に識別できる。
+         */
+        String visualAssetId =
+                calculateVisualAssetId(
+                        frontRendered.pixels(),
+                        backRendered.pixels()
+                );
+
 
         Path directory =
                 Path.of(
@@ -93,41 +189,46 @@ public final class OrigamiPngExporter {
                 );
 
 
-        writePng(
+        Files.write(
                 frontPath,
-                front,
-                appearance
+                frontRendered.pngBytes()
         );
 
 
-        writePng(
+        Files.write(
                 backPath,
-                back,
-                appearance
+                backRendered.pngBytes()
         );
 
 
         return new ExportResult(
+                visualAssetId,
+                frontRendered.pngBytes(),
+                backRendered.pngBytes(),
                 frontPath.toAbsolutePath(),
                 backPath.toAbsolutePath()
         );
     }
 
 
-    private static void writePng(
-            Path path,
+    /*
+     * OrigamiFoldResultから
+     * 512x512 ARGB画像とPNG byte[]を生成する。
+     */
+    private static RenderedPng renderPng(
             OrigamiFoldResult result,
             OrigamiAppearance appearance
     ) throws IOException {
 
         /*
-         * 現在GUIで使っているRasterizerを
-         * そのまま利用する。
+         * 現在GUIで使用しているRasterizerを
+         * そのまま使用する。
          *
-         * zoom = 1
-         * angle = 0
+         * zoom = 1.0
+         * angle = 0.0
          *
-         * として標準姿勢の画像を生成する。
+         * 回転・拡大率は画像へ焼き込まず、
+         * 将来のDisplayEntity側で変更する。
          */
         List<OrigamiPreviewRasterizer.Span> spans =
                 OrigamiPreviewRasterizer.rasterize(
@@ -140,20 +241,16 @@ public final class OrigamiPngExporter {
                 );
 
 
-        BufferedImage image =
-                new BufferedImage(
-                        IMAGE_SIZE,
-                        IMAGE_SIZE,
-                        BufferedImage.TYPE_INT_ARGB
-                );
-
-
         /*
-         * BufferedImageの初期値は透明。
-         *
-         * Rasterizerが返したSpan部分だけ
-         * ARGBを書き込む。
+         * 0x00000000 = 完全透明。
          */
+        int[] pixels =
+                new int[
+                        IMAGE_SIZE
+                                * IMAGE_SIZE
+                        ];
+
+
         for (OrigamiPreviewRasterizer.Span span :
                 spans) {
 
@@ -190,28 +287,212 @@ public final class OrigamiPngExporter {
                  x <= xEnd;
                  x++) {
 
-                image.setRGB(
-                        x,
-                        y,
-                        span.color()
-                );
+                pixels[
+                        y * IMAGE_SIZE
+                                + x
+                        ] =
+                        span.color();
             }
         }
 
 
-        boolean written =
-                ImageIO.write(
-                        image,
-                        "PNG",
-                        path.toFile()
+        BufferedImage image =
+                new BufferedImage(
+                        IMAGE_SIZE,
+                        IMAGE_SIZE,
+                        BufferedImage.TYPE_INT_ARGB
                 );
 
 
-        if (!written) {
+        image.setRGB(
+                0,
+                0,
+                IMAGE_SIZE,
+                IMAGE_SIZE,
+                pixels,
+                0,
+                IMAGE_SIZE
+        );
 
-            throw new IOException(
-                    "PNG writer was not found"
+
+        byte[] pngBytes;
+
+
+        try (
+                ByteArrayOutputStream output =
+                        new ByteArrayOutputStream()
+        ) {
+
+            boolean written =
+                    ImageIO.write(
+                            image,
+                            "PNG",
+                            output
+                    );
+
+
+            if (!written) {
+
+                throw new IOException(
+                        "PNG writer was not found"
+                );
+            }
+
+
+            pngBytes =
+                    output.toByteArray();
+        }
+
+
+        return new RenderedPng(
+                pixels,
+                pngBytes
+        );
+    }
+
+
+    /*
+     * 表裏画像の実際のARGBピクセルから
+     * SHA-256 IDを生成する。
+     *
+     * FRONTとBACKの順番もIDへ含まれるため、
+     * 表裏を交換した画像は別assetになる。
+     */
+    private static String calculateVisualAssetId(
+            int[] frontPixels,
+            int[] backPixels
+    ) {
+
+        final MessageDigest digest;
+
+
+        try {
+
+            digest =
+                    MessageDigest.getInstance(
+                            "SHA-256"
+                    );
+
+        } catch (NoSuchAlgorithmException e) {
+
+            /*
+             * SHA-256はJava標準で必須なので、
+             * 通常ここには到達しない。
+             */
+            throw new IllegalStateException(
+                    "SHA-256 is not available",
+                    e
             );
         }
+
+
+        digest.update(
+                ASSET_ID_VERSION.getBytes(
+                        StandardCharsets.UTF_8
+                )
+        );
+
+
+        /*
+         * 画像サイズもIDへ含める。
+         */
+        updateInt(
+                digest,
+                IMAGE_SIZE
+        );
+
+        updateInt(
+                digest,
+                IMAGE_SIZE
+        );
+
+
+        /*
+         * FRONT開始マーカー。
+         */
+        digest.update(
+                (byte) 1
+        );
+
+
+        updatePixels(
+                digest,
+                frontPixels
+        );
+
+
+        /*
+         * BACK開始マーカー。
+         */
+        digest.update(
+                (byte) 2
+        );
+
+
+        updatePixels(
+                digest,
+                backPixels
+        );
+
+
+        return HexFormat.of()
+                .formatHex(
+                        digest.digest()
+                );
+    }
+
+
+    private static void updatePixels(
+            MessageDigest digest,
+            int[] pixels
+    ) {
+
+        updateInt(
+                digest,
+                pixels.length
+        );
+
+
+        for (int pixel :
+                pixels) {
+
+            /*
+             * ARGB intを
+             * 固定順序4byteとしてSHA-256へ渡す。
+             */
+            updateInt(
+                    digest,
+                    pixel
+            );
+        }
+    }
+
+
+    private static void updateInt(
+            MessageDigest digest,
+            int value
+    ) {
+
+        digest.update(
+                (byte) (
+                        value >>> 24
+                )
+        );
+
+        digest.update(
+                (byte) (
+                        value >>> 16
+                )
+        );
+
+        digest.update(
+                (byte) (
+                        value >>> 8
+                )
+        );
+
+        digest.update(
+                (byte) value
+        );
     }
 }
