@@ -17,6 +17,10 @@ import com.nyankoro.origamimod.network.CreateOrigamiItemPayload;
 
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
+import com.nyankoro.origamimod.OrigamiMod;
+
+import java.io.IOException;
+
 public final class OrigamiSettingsScreen
         extends Screen {
 
@@ -820,6 +824,46 @@ public final class OrigamiSettingsScreen
             showCreateItemError(
                     "CPデータが大きすぎるため"
                             + "アイテム化できません"
+            );
+
+            return;
+        }
+
+        /*
+         * 現在の折り紙を
+         * 表・裏PNGとして生成する。
+         *
+         * 現段階ではローカルへの
+         * デバッグ出力だけ。
+         */
+        try {
+
+            OrigamiPngExporter.ExportResult exportResult =
+                    OrigamiPngExporter.export(
+                            front,
+                            back,
+                            appearance
+                    );
+
+
+            OrigamiMod.LOGGER.info(
+                    "Origami PNG exported: "
+                            + "front={}, "
+                            + "back={}",
+                    exportResult.frontPath(),
+                    exportResult.backPath()
+            );
+
+        } catch (IOException e) {
+
+            OrigamiMod.LOGGER.error(
+                    "Failed to export origami PNG",
+                    e
+            );
+
+
+            showCreateItemError(
+                    "折り紙画像の生成に失敗しました"
             );
 
             return;
