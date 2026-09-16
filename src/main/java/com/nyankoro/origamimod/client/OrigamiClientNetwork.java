@@ -14,6 +14,7 @@ import net.neoforged.neoforge.client.network.event
         .RegisterClientPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.HandlerThread;
+import java.io.IOException;
 
 
 /*
@@ -81,20 +82,77 @@ public final class OrigamiClientNetwork {
                                     Minecraft.getInstance();
 
 
-                            if (minecraft.player != null) {
+                            try {
 
-                                minecraft.player
-                                        .sendSystemMessage(
-                                                Component.literal(
-                                                        "折り紙画像を受信しました: "
-                                                                + payload
-                                                                .visualAssetId()
-                                                                .substring(
-                                                                        0,
-                                                                        12
-                                                                )
-                                                )
+                                OrigamiTextureCache.TexturePair textures =
+                                        OrigamiTextureCache.getOrLoad(
+                                                payload.visualAssetId()
                                         );
+
+
+                                if (textures == null) {
+
+                                    OrigamiMod.LOGGER.warn(
+                                            "Downloaded origami asset "
+                                                    + "could not be loaded into GPU: {}",
+                                            payload.visualAssetId()
+                                    );
+
+                                    return;
+                                }
+
+
+                                OrigamiMod.LOGGER.info(
+                                        "Origami GPU texture ready: "
+                                                + "assetId={}, "
+                                                + "front={}, "
+                                                + "back={}",
+                                        payload.visualAssetId(),
+                                        textures.front(),
+                                        textures.back()
+                                );
+
+
+                                if (minecraft.player != null) {
+
+                                    minecraft.player
+                                            .sendSystemMessage(
+                                                    Component.literal(
+                                                            "折り紙画像を受信・読み込みしました: "
+                                                                    + payload
+                                                                    .visualAssetId()
+                                                                    .substring(
+                                                                            0,
+                                                                            12
+                                                                    )
+                                                    )
+                                            );
+                                }
+
+
+                            } catch (
+                                    IOException
+                                    | RuntimeException e
+                            ) {
+
+                                OrigamiMod.LOGGER.error(
+                                        "Failed to load downloaded origami "
+                                                + "texture into GPU: "
+                                                + "assetId={}",
+                                        payload.visualAssetId(),
+                                        e
+                                );
+
+
+                                if (minecraft.player != null) {
+
+                                    minecraft.player
+                                            .sendSystemMessage(
+                                                    Component.literal(
+                                                            "折り紙Textureの読み込みに失敗しました"
+                                                    )
+                                            );
+                                }
                             }
                         }
                 );

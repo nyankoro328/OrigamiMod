@@ -134,6 +134,31 @@ public final class OrigamiVisualAssetClientCache {
                 );
     }
 
+    public static Path frontPath(
+            String visualAssetId
+    ) {
+
+        return assetDirectory(
+                visualAssetId
+        )
+                .resolve(
+                        FRONT_FILE
+                );
+    }
+
+
+    public static Path backPath(
+            String visualAssetId
+    ) {
+
+        return assetDirectory(
+                visualAssetId
+        )
+                .resolve(
+                        BACK_FILE
+                );
+    }
+
 
     public static Result acceptChunk(
             OrigamiVisualAssetDownloadChunkPayload payload

@@ -16,6 +16,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import java.io.IOException;
 
 
 @EventBusSubscriber(
@@ -121,19 +122,94 @@ public final class OrigamiClientCommands {
                                                                             assetId
                                                                     )) {
 
-                                                                if (minecraft.player
-                                                                        != null) {
+                                                                try {
 
-                                                                    minecraft.player
-                                                                            .sendSystemMessage(
-                                                                                    Component.literal(
-                                                                                            "この折り紙画像は既にキャッシュされています"
-                                                                                    )
+                                                                    boolean alreadyLoaded =
+                                                                            OrigamiTextureCache.isLoaded(
+                                                                                    assetId
                                                                             );
+
+
+                                                                    OrigamiTextureCache.TexturePair textures =
+                                                                            OrigamiTextureCache.getOrLoad(
+                                                                                    assetId
+                                                                            );
+
+
+                                                                    if (textures == null) {
+
+                                                                        if (minecraft.player != null) {
+
+                                                                            minecraft.player
+                                                                                    .sendSystemMessage(
+                                                                                            Component.literal(
+                                                                                                    "折り紙Textureを読み込めませんでした"
+                                                                                            )
+                                                                                    );
+                                                                        }
+
+
+                                                                        return 0;
+                                                                    }
+
+
+                                                                    if (minecraft.player != null) {
+
+                                                                        minecraft.player
+                                                                                .sendSystemMessage(
+                                                                                        Component.literal(
+                                                                                                alreadyLoaded
+                                                                                                        ? "この折り紙Textureは既にGPUへ読み込み済みです"
+                                                                                                        : "キャッシュから折り紙TextureをGPUへ読み込みました"
+                                                                                        )
+                                                                                );
+                                                                    }
+
+
+                                                                    OrigamiMod.LOGGER.info(
+                                                                            "Origami texture test: "
+                                                                                    + "assetId={}, "
+                                                                                    + "front={}, "
+                                                                                    + "back={}, "
+                                                                                    + "loadedAssets={}, "
+                                                                                    + "estimatedGpuBytes={}",
+                                                                            assetId,
+                                                                            textures.front(),
+                                                                            textures.back(),
+                                                                            OrigamiTextureCache
+                                                                                    .loadedAssetCount(),
+                                                                            OrigamiTextureCache
+                                                                                    .estimatedGpuBytes()
+                                                                    );
+
+
+                                                                    return 1;
+
+
+                                                                } catch (
+                                                                        IOException
+                                                                        | RuntimeException e
+                                                                ) {
+
+                                                                    OrigamiMod.LOGGER.error(
+                                                                            "Failed to load cached origami texture",
+                                                                            e
+                                                                    );
+
+
+                                                                    if (minecraft.player != null) {
+
+                                                                        minecraft.player
+                                                                                .sendSystemMessage(
+                                                                                        Component.literal(
+                                                                                                "折り紙Textureの読み込みに失敗しました"
+                                                                                        )
+                                                                                );
+                                                                    }
+
+
+                                                                    return 0;
                                                                 }
-
-
-                                                                return 1;
                                                             }
 
 
