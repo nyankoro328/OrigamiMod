@@ -86,6 +86,28 @@ public final class OrigamiDisplayEntityRenderer
 
         public int textureHeight =
                 1;
+
+        public float displayScale =
+                1.0F;
+
+
+        public float horizontalOffset =
+                0.0F;
+
+
+        public float verticalOffset =
+                0.0F;
+
+
+        public float depthOffset =
+                0.0F;
+
+        public boolean backSideOutward =
+                false;
+
+
+        public int displayAngle =
+                0;
     }
 
 
@@ -125,6 +147,21 @@ public final class OrigamiDisplayEntityRenderer
         state.wallFace =
                 entity.getWallFace();
 
+        state.displayScale =
+                entity.getDisplayScale();
+
+
+        state.horizontalOffset =
+                entity.getHorizontalOffset();
+
+
+        state.verticalOffset =
+                entity.getVerticalOffset();
+
+
+        state.depthOffset =
+                entity.getDepthOffset();
+
 
         /*
          * 前フレームのTexture情報を
@@ -141,6 +178,13 @@ public final class OrigamiDisplayEntityRenderer
 
         state.textureHeight =
                 1;
+
+        state.backSideOutward =
+                entity.isBackSideOutward();
+
+
+        state.displayAngle =
+                entity.getDisplayAngle();
 
 
         if (!entity.hasVisualAsset()) {
@@ -245,8 +289,24 @@ public final class OrigamiDisplayEntityRenderer
                 ) < 0.0;
 
 
-        Identifier texture =
+        /*
+         * outward側にどちらの面を表示するかを反映する。
+         *
+         * backSideOutward=false:
+         *   外側 = front
+         *   裏側 = back
+         *
+         * backSideOutward=true:
+         *   外側 = back
+         *   裏側 = front
+         */
+        boolean useBackTexture =
                 rearView
+                        ^ state.backSideOutward;
+
+
+        Identifier texture =
+                useBackTexture
                         ? state.backTexture
                         : state.frontTexture;
 
@@ -272,7 +332,8 @@ public final class OrigamiDisplayEntityRenderer
          * PNGのAspect Ratioを維持する。
          */
         float width =
-                DEFAULT_WIDTH;
+                DEFAULT_WIDTH
+                        * state.displayScale;
 
 
         float height =
@@ -333,6 +394,7 @@ public final class OrigamiDisplayEntityRenderer
                                         halfWidth,
                                         halfHeight,
                                         rearView,
+                                        state.displayAngle,
                                         state.lightCoords
                                 )
                 );
@@ -354,7 +416,8 @@ public final class OrigamiDisplayEntityRenderer
             float halfWidth,
             float halfHeight,
             boolean rearView,
-            int lightCoords
+            int lightCoords,
+            int displayAngle
     ) {
 
         float normalSign =
@@ -399,6 +462,7 @@ public final class OrigamiDisplayEntityRenderer
                 normalX,
                 normalY,
                 normalZ,
+                displayAngle,
                 lightCoords
         );
 
@@ -414,6 +478,7 @@ public final class OrigamiDisplayEntityRenderer
                 normalX,
                 normalY,
                 normalZ,
+                displayAngle,
                 lightCoords
         );
 
@@ -429,6 +494,7 @@ public final class OrigamiDisplayEntityRenderer
                 normalX,
                 normalY,
                 normalZ,
+                displayAngle,
                 lightCoords
         );
 
@@ -444,6 +510,7 @@ public final class OrigamiDisplayEntityRenderer
                 normalX,
                 normalY,
                 normalZ,
+                displayAngle,
                 lightCoords
         );
     }
@@ -460,8 +527,51 @@ public final class OrigamiDisplayEntityRenderer
             float normalX,
             float normalY,
             float normalZ,
+            int displayAngle,
             int lightCoords
     ) {
+
+        /*
+         * Settings画面のAngleと
+         * 見た目の回転方向を合わせる。
+         *
+         * GUIではY軸が下向きなので、
+         * MinecraftのY-up座標では
+         * angleの符号を反転して適用する。
+         */
+        double radians =
+                Math.toRadians(
+                        -displayAngle
+                );
+
+
+        double cos =
+                Math.cos(
+                        radians
+                );
+
+        double sin =
+                Math.sin(
+                        radians
+                );
+
+
+        float rotatedX =
+                (float) (
+                        localX
+                                * cos
+                                - localY
+                                * sin
+                );
+
+
+        float rotatedY =
+                (float) (
+                        localX
+                                * sin
+                                + localY
+                                * cos
+                );
 
         /*
          * Quadのlocal Xを
@@ -470,14 +580,13 @@ public final class OrigamiDisplayEntityRenderer
         float x =
                 (float) (
                         frontRight.x
-                                * localX
+                                * rotatedX
                 );
-
 
         float z =
                 (float) (
                         frontRight.z
-                                * localX
+                                * rotatedX
                 );
 
 
@@ -485,7 +594,7 @@ public final class OrigamiDisplayEntityRenderer
                 .addVertex(
                         pose,
                         x,
-                        localY,
+                        rotatedY,
                         z
                 )
                 .setColor(

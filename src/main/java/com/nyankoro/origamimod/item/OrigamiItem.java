@@ -76,6 +76,7 @@ public final class OrigamiItem
         );
 
 
+
         OrigamiItemData data =
                 stack.getOrDefault(
                         OrigamiMod.ORIGAMI_DATA.get(),
@@ -261,7 +262,9 @@ public final class OrigamiItem
 
             displayEntity.initialize(
                     data.visualAssetId(),
-                    clickedFace
+                    clickedFace,
+                    data.backSideOutward(),
+                    data.angle()
             );
 
 

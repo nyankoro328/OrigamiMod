@@ -29,6 +29,7 @@ public record OrigamiItemData(
         int frontColor,
         int backColor,
         int edgeColor,
+        boolean backSideOutward,
         int angle
 ) {
 
@@ -47,6 +48,7 @@ public record OrigamiItemData(
                     0xFFFFC857,
                     0xFF4EA5D9,
                     0xFF202020,
+                    false,
                     0
             );
 
@@ -111,6 +113,15 @@ public record OrigamiItemData(
                                                             OrigamiItemData::edgeColor
                                                     ),
 
+                                            Codec.BOOL
+                                                    .optionalFieldOf(
+                                                            "back_side_outward",
+                                                            false
+                                                    )
+                                                    .forGetter(
+                                                            OrigamiItemData::backSideOutward
+                                                    ),
+
                                             Codec.INT
                                                     .fieldOf(
                                                             "angle"
@@ -161,6 +172,10 @@ public record OrigamiItemData(
                                 data.edgeColor()
                         );
 
+                        buffer.writeBoolean(
+                                data.backSideOutward()
+                        );
+
                         buffer.writeInt(
                                 data.angle()
                         );
@@ -174,6 +189,7 @@ public record OrigamiItemData(
                                     buffer.readInt(),
                                     buffer.readInt(),
                                     buffer.readInt(),
+                                    buffer.readBoolean(),
                                     buffer.readInt()
                             )
             );

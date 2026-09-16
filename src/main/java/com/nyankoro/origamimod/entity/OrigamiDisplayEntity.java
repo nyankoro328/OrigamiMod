@@ -67,6 +67,52 @@ public final class OrigamiDisplayEntity
                     EntityDataSerializers.INT
             );
 
+    private static final EntityDataAccessor<Float>
+            DATA_SCALE =
+            SynchedEntityData.defineId(
+                    OrigamiDisplayEntity.class,
+                    EntityDataSerializers.FLOAT
+            );
+
+
+    private static final EntityDataAccessor<Float>
+            DATA_HORIZONTAL_OFFSET =
+            SynchedEntityData.defineId(
+                    OrigamiDisplayEntity.class,
+                    EntityDataSerializers.FLOAT
+            );
+
+
+    private static final EntityDataAccessor<Float>
+            DATA_VERTICAL_OFFSET =
+            SynchedEntityData.defineId(
+                    OrigamiDisplayEntity.class,
+                    EntityDataSerializers.FLOAT
+            );
+
+
+    private static final EntityDataAccessor<Float>
+            DATA_DEPTH_OFFSET =
+            SynchedEntityData.defineId(
+                    OrigamiDisplayEntity.class,
+                    EntityDataSerializers.FLOAT
+            );
+
+    private static final EntityDataAccessor<Boolean>
+            DATA_BACK_SIDE_OUTWARD =
+            SynchedEntityData.defineId(
+                    OrigamiDisplayEntity.class,
+                    EntityDataSerializers.BOOLEAN
+            );
+
+
+    private static final EntityDataAccessor<Integer>
+            DATA_DISPLAY_ANGLE =
+            SynchedEntityData.defineId(
+                    OrigamiDisplayEntity.class,
+                    EntityDataSerializers.INT
+            );
+
 
     public OrigamiDisplayEntity(
             EntityType<? extends OrigamiDisplayEntity> type,
@@ -96,7 +142,9 @@ public final class OrigamiDisplayEntity
      */
     public void initialize(
             String visualAssetId,
-            Direction wallFace
+            Direction wallFace,
+            boolean backSideOutward,
+            int displayAngle
     ) {
 
         if (!OrigamiVisualAssetId.isValidFormat(
@@ -127,6 +175,14 @@ public final class OrigamiDisplayEntity
         setWallFace(
                 wallFace
         );
+
+        setBackSideOutward(
+                backSideOutward
+        );
+
+        setDisplayAngle(
+                displayAngle
+        );
     }
 
 
@@ -145,6 +201,40 @@ public final class OrigamiDisplayEntity
                 DATA_WALL_FACE,
                 Direction.SOUTH
                         .get3DDataValue()
+        );
+
+        entityData.define(
+                DATA_SCALE,
+                1.0F
+        );
+
+
+        entityData.define(
+                DATA_HORIZONTAL_OFFSET,
+                0.0F
+        );
+
+
+        entityData.define(
+                DATA_VERTICAL_OFFSET,
+                0.0F
+        );
+
+
+        entityData.define(
+                DATA_DEPTH_OFFSET,
+                0.0F
+        );
+
+        entityData.define(
+                DATA_BACK_SIDE_OUTWARD,
+                false
+        );
+
+
+        entityData.define(
+                DATA_DISPLAY_ANGLE,
+                0
         );
     }
 
@@ -237,6 +327,179 @@ public final class OrigamiDisplayEntity
         );
     }
 
+    public float getDisplayScale() {
+
+        return this.entityData.get(
+                DATA_SCALE
+        );
+    }
+
+
+    public float getHorizontalOffset() {
+
+        return this.entityData.get(
+                DATA_HORIZONTAL_OFFSET
+        );
+    }
+
+
+    public float getVerticalOffset() {
+
+        return this.entityData.get(
+                DATA_VERTICAL_OFFSET
+        );
+    }
+
+
+    public float getDepthOffset() {
+
+        return this.entityData.get(
+                DATA_DEPTH_OFFSET
+        );
+    }
+
+
+    public void setDisplayScale(
+            float scale
+    ) {
+
+        this.entityData.set(
+                DATA_SCALE,
+                clamp(
+                        scale,
+                        0.1F,
+                        10.0F
+                )
+        );
+    }
+
+
+    public void setHorizontalOffset(
+            float offset
+    ) {
+
+        this.entityData.set(
+                DATA_HORIZONTAL_OFFSET,
+                clamp(
+                        offset,
+                        -16.0F,
+                        16.0F
+                )
+        );
+    }
+
+
+    public void setVerticalOffset(
+            float offset
+    ) {
+
+        this.entityData.set(
+                DATA_VERTICAL_OFFSET,
+                clamp(
+                        offset,
+                        -16.0F,
+                        16.0F
+                )
+        );
+    }
+
+
+    public void setDepthOffset(
+            float offset
+    ) {
+
+        this.entityData.set(
+                DATA_DEPTH_OFFSET,
+                clamp(
+                        offset,
+                        -2.0F,
+                        2.0F
+                )
+        );
+    }
+
+
+    private static float clamp(
+            float value,
+            float min,
+            float max
+    ) {
+
+        if (!Float.isFinite(
+                value
+        )) {
+
+            return min;
+        }
+
+
+        return Math.max(
+                min,
+                Math.min(
+                        max,
+                        value
+                )
+        );
+    }
+
+    public boolean isBackSideOutward() {
+
+        return this.entityData.get(
+                DATA_BACK_SIDE_OUTWARD
+        );
+    }
+
+
+    public void setBackSideOutward(
+            boolean backSideOutward
+    ) {
+
+        this.entityData.set(
+                DATA_BACK_SIDE_OUTWARD,
+                backSideOutward
+        );
+    }
+
+
+    public int getDisplayAngle() {
+
+        return this.entityData.get(
+                DATA_DISPLAY_ANGLE
+        );
+    }
+
+
+    public void setDisplayAngle(
+            int angle
+    ) {
+
+        this.entityData.set(
+                DATA_DISPLAY_ANGLE,
+                normalizeAngle(
+                        angle
+                )
+        );
+    }
+
+
+    private static int normalizeAngle(
+            int angle
+    ) {
+
+        int result =
+                angle % 360;
+
+
+        if (result < 0) {
+
+            result +=
+                    360;
+        }
+
+
+        return result;
+    }
+
 
     /*
      * visualAssetIdとwallFaceを
@@ -260,6 +523,45 @@ public final class OrigamiDisplayEntity
                 "WallFace",
                 getWallFace()
                         .get3DDataValue()
+        );
+
+
+        /*
+         * 編集用Transformを
+         * ワールドデータへ保存する。
+         */
+        output.putFloat(
+                "DisplayScale",
+                getDisplayScale()
+        );
+
+
+        output.putFloat(
+                "HorizontalOffset",
+                getHorizontalOffset()
+        );
+
+
+        output.putFloat(
+                "VerticalOffset",
+                getVerticalOffset()
+        );
+
+
+        output.putFloat(
+                "DepthOffset",
+                getDepthOffset()
+        );
+
+        output.putBoolean(
+                "BackSideOutward",
+                isBackSideOutward()
+        );
+
+
+        output.putInt(
+                "DisplayAngle",
+                getDisplayAngle()
         );
     }
 
@@ -320,7 +622,60 @@ public final class OrigamiDisplayEntity
 
 
         /*
-         * 念のためLoad後にも固定化。
+         * 編集用Transform。
+         *
+         * 古いEntityには値が保存されていないため、
+         * デフォルト値を使用する。
+         */
+        setDisplayScale(
+                input.getFloatOr(
+                        "DisplayScale",
+                        1.0F
+                )
+        );
+
+
+        setHorizontalOffset(
+                input.getFloatOr(
+                        "HorizontalOffset",
+                        0.0F
+                )
+        );
+
+
+        setVerticalOffset(
+                input.getFloatOr(
+                        "VerticalOffset",
+                        0.0F
+                )
+        );
+
+
+        setDepthOffset(
+                input.getFloatOr(
+                        "DepthOffset",
+                        0.0F
+                )
+        );
+
+        setBackSideOutward(
+                input.getBooleanOr(
+                        "BackSideOutward",
+                        false
+                )
+        );
+
+
+        setDisplayAngle(
+                input.getIntOr(
+                        "DisplayAngle",
+                        0
+                )
+        );
+
+
+        /*
+         * Load後も壁掛けEntityとして固定。
          */
         this.noPhysics =
                 true;

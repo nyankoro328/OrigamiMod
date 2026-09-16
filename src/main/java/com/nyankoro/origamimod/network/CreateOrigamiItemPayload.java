@@ -33,6 +33,7 @@ public record CreateOrigamiItemPayload(
         int frontColor,
         int backColor,
         int edgeColor,
+        boolean backSideOutward,
         int angle
 ) implements CustomPacketPayload {
 
@@ -103,6 +104,10 @@ public record CreateOrigamiItemPayload(
                 payload.edgeColor()
         );
 
+        buffer.writeBoolean(
+                payload.backSideOutward()
+        );
+
         buffer.writeInt(
                 payload.angle()
         );
@@ -140,6 +145,9 @@ public record CreateOrigamiItemPayload(
         int edgeColor =
                 buffer.readInt();
 
+        boolean backSideOutward =
+                buffer.readBoolean();
+
         int angle =
                 buffer.readInt();
 
@@ -151,6 +159,7 @@ public record CreateOrigamiItemPayload(
                 frontColor,
                 backColor,
                 edgeColor,
+                backSideOutward,
                 angle
         );
     }
@@ -215,6 +224,7 @@ public record CreateOrigamiItemPayload(
                         payload.frontColor(),
                         payload.backColor(),
                         payload.edgeColor(),
+                        payload.backSideOutward(),
                         payload.angle()
                 )
         );
