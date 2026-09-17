@@ -20,6 +20,10 @@ import com.nyankoro.origamimod.network
 
 import net.minecraft.client.input.MouseButtonEvent;
 
+import net.minecraft.client.gui.components.EditBox;
+
+import java.util.Locale;
+
 
 /*
  * 保存済みCP一覧画面。
@@ -29,17 +33,37 @@ import net.minecraft.client.input.MouseButtonEvent;
  */
 public final class CreasePatternLibraryScreen
         extends Screen {
+    /*
+     * 一覧レイアウト。
+     */
+    private static final int LIST_TOP =
+            100;
 
-    private static final int ROWS_PER_PAGE =
-            8;
+    private static final int ROW_HEIGHT =
+            30;
 
-
+    private static final int BOTTOM_RESERVED =
+            82;
     private final Screen parent;
 
 
     private List<CreasePatternListPayload.Entry>
             entries =
             List.of();
+
+    /*
+     * 検索後に実際に画面へ表示する一覧。
+     */
+    private List<CreasePatternListPayload.Entry>
+            filteredEntries =
+            List.of();
+
+
+    private EditBox searchBox;
+
+
+    private String searchText =
+            "";
 
 
     private boolean loading =
@@ -50,6 +74,25 @@ public final class CreasePatternLibraryScreen
 
     private int page =
             0;
+
+    private int getRowsPerPage() {
+
+        int listBottom =
+                this.height
+                        - BOTTOM_RESERVED;
+
+
+        int availableHeight =
+                listBottom
+                        - LIST_TOP;
+
+
+        return Math.max(
+                1,
+                availableHeight
+                        / ROW_HEIGHT
+        );
+    }
 
 
     private Button previousButton;
@@ -85,6 +128,55 @@ public final class CreasePatternLibraryScreen
 
         int smallWidth =
                 80;
+
+        /*
+         * 保存済みCP検索欄。
+         *
+         * Serverへ再問い合わせせず、
+         * Clientが既に持っている一覧を絞り込む。
+         */
+        searchBox =
+                new EditBox(
+                        this.font,
+                        30,
+                        44,
+                        this.width - 60,
+                        20,
+                        Component.literal(
+                                "展開図を検索"
+                        )
+                );
+
+
+        searchBox.setMaxLength(
+                128
+        );
+
+
+        searchBox.setHint(
+                Component.literal(
+                        "ファイル名で検索..."
+                )
+        );
+
+
+        /*
+         * 画面サイズ変更などでinit()が再実行されても
+         * 入力中の検索文字を維持する。
+         */
+        searchBox.setValue(
+                searchText
+        );
+
+
+        searchBox.setResponder(
+                this::applySearch
+        );
+
+
+        this.addRenderableWidget(
+                searchBox
+        );
 
 
         previousButton =
@@ -217,11 +309,8 @@ public final class CreasePatternLibraryScreen
             entries =
                     List.of();
 
-            status =
-                    payload.message()
-                            .isBlank()
-                            ? "一覧の取得に失敗しました"
-                            : payload.message();
+            filteredEntries =
+                    List.of();
 
             page =
                     0;
@@ -238,10 +327,15 @@ public final class CreasePatternLibraryScreen
                 );
 
 
-        status =
-                "保存済み展開図: "
-                        + entries.size()
-                        + "件";
+        entries =
+                List.copyOf(
+                        payload.entries()
+                );
+
+
+        applySearch(
+                searchText
+        );
 
 
         int maxPage =
@@ -308,16 +402,16 @@ public final class CreasePatternLibraryScreen
 
     private int getMaxPage() {
 
-        if (entries.isEmpty()) {
+        if (filteredEntries.isEmpty()) {
 
             return 0;
         }
 
 
         return (
-                entries.size()
+                filteredEntries.size()
                         - 1
-        ) / ROWS_PER_PAGE;
+        ) / getRowsPerPage();
     }
 
 
@@ -372,6 +466,94 @@ public final class CreasePatternLibraryScreen
                         entry.creasePatternId()
                 )
         );
+    }
+
+    private void applySearch(
+            String text
+    ) {
+
+        searchText =
+                text == null
+                        ? ""
+                        : text;
+
+
+        String query =
+                searchText
+                        .strip()
+                        .toLowerCase(
+                                Locale.ROOT
+                        );
+
+
+        /*
+         * 空欄なら全件表示。
+         */
+        if (query.isEmpty()) {
+
+            filteredEntries =
+                    entries;
+
+        } else {
+
+            filteredEntries =
+                    entries
+                            .stream()
+                            .filter(
+                                    entry ->
+                                            entry.fileName()
+                                                    .toLowerCase(
+                                                            Locale.ROOT
+                                                    )
+                                                    .contains(
+                                                            query
+                                                    )
+                            )
+                            .toList();
+        }
+
+
+        /*
+         * 検索条件が変わったら
+         * 必ず1ページ目へ戻す。
+         */
+        page =
+                0;
+
+
+        updateStatus();
+        updatePageButtons();
+    }
+
+    private void updateStatus() {
+
+        if (loading) {
+
+            status =
+                    "保存済み展開図を取得中...";
+
+            return;
+        }
+
+
+        if (searchText
+                .strip()
+                .isEmpty()) {
+
+            status =
+                    "保存済み展開図: "
+                            + filteredEntries.size()
+                            + "件";
+
+        } else {
+
+            status =
+                    "検索結果: "
+                            + filteredEntries.size()
+                            + " / "
+                            + filteredEntries.size()
+                            + "件";
+        }
     }
 
     @Override
@@ -429,12 +611,16 @@ public final class CreasePatternLibraryScreen
         }
 
 
-        if (entries.isEmpty()) {
+        if (filteredEntries.isEmpty()) {
 
             graphics.text(
                     font,
                     Component.literal(
-                            "保存済みの展開図はありません"
+                            searchText
+                                    .strip()
+                                    .isEmpty()
+                                    ? "保存済みの展開図はありません"
+                                    : "検索条件に一致する展開図はありません"
                     ),
                     30,
                     80,
@@ -445,20 +631,24 @@ public final class CreasePatternLibraryScreen
         }
 
 
+        int rowsPerPage =
+                getRowsPerPage();
+
+
         int start =
                 page
-                        * ROWS_PER_PAGE;
+                        * rowsPerPage;
 
         int end =
                 Math.min(
                         start
-                                + ROWS_PER_PAGE,
-                        entries.size()
+                                + rowsPerPage,
+                        filteredEntries.size()
                 );
 
 
         int y =
-                70;
+                LIST_TOP;
 
 
         for (int i = start;
@@ -466,7 +656,7 @@ public final class CreasePatternLibraryScreen
              i++) {
 
             CreasePatternListPayload.Entry entry =
-                    entries.get(
+                    filteredEntries.get(
                             i
                     );
 
@@ -509,7 +699,7 @@ public final class CreasePatternLibraryScreen
 
 
             y +=
-                    30;
+                    ROW_HEIGHT;
         }
 
 
@@ -555,20 +745,24 @@ public final class CreasePatternLibraryScreen
         }
 
 
+        int rowsPerPage =
+                getRowsPerPage();
+
+
         int start =
                 page
-                        * ROWS_PER_PAGE;
+                        * rowsPerPage;
 
         int end =
                 Math.min(
                         start
-                                + ROWS_PER_PAGE,
-                        entries.size()
+                                + rowsPerPage,
+                        filteredEntries.size()
                 );
 
 
         int y =
-                70;
+                LIST_TOP;
 
 
         for (int i = start;
@@ -588,7 +782,7 @@ public final class CreasePatternLibraryScreen
                     && event.y() <= bottom) {
 
                 selectEntry(
-                        entries.get(
+                        filteredEntries.get(
                                 i
                         )
                 );
@@ -598,7 +792,7 @@ public final class CreasePatternLibraryScreen
 
 
             y +=
-                    30;
+                    ROW_HEIGHT;
         }
 
 
