@@ -130,6 +130,33 @@ public final class OrigamiEditorScreen
         int buttonY =
                 height - 60;
 
+        /*
+         * 保存済みCPライブラリ。
+         */
+        this.addRenderableWidget(
+                Button.builder(
+                                Component.literal(
+                                        "保存済みCP"
+                                ),
+                                button ->
+                                        this.minecraft.gui
+                                                .setScreen(
+                                                        new CreasePatternLibraryScreen(
+                                                                this
+                                                        )
+                                                )
+                        )
+                        .pos(
+                                controlsX,
+                                buttonY - 25
+                        )
+                        .size(
+                                controlsWidth,
+                                20
+                        )
+                        .build()
+        );
+
 
         foldButton =
                 this.addRenderableWidget(

@@ -123,6 +123,76 @@ public final class OrigamiItem
                             )
             );
         }
+
+        /*
+         * 開発中の確認用。
+         *
+         * origamiId:
+         *   個々の作品ごとに異なる。
+         *
+         * creasePatternId:
+         *   同じCPから作った作品なら同じ。
+         */
+        if (data.hasOrigamiId()) {
+
+            tooltipAdder.accept(
+                    Component.literal(
+                                    "作品ID: "
+                                            + data.origamiId()
+                                            .substring(
+                                                    0,
+                                                    Math.min(
+                                                            8,
+                                                            data.origamiId()
+                                                                    .length()
+                                                    )
+                                            )
+                            )
+                            .withStyle(
+                                    ChatFormatting.DARK_GRAY
+                            )
+            );
+
+        } else {
+
+            tooltipAdder.accept(
+                    Component.literal(
+                                    "作品ID: 未設定"
+                            )
+                            .withStyle(
+                                    ChatFormatting.DARK_GRAY
+                            )
+            );
+        }
+
+
+        if (data.hasCreasePattern()) {
+
+            tooltipAdder.accept(
+                    Component.literal(
+                                    "展開図ID: "
+                                            + data.creasePatternId()
+                                            .substring(
+                                                    0,
+                                                    12
+                                            )
+                            )
+                            .withStyle(
+                                    ChatFormatting.DARK_GRAY
+                            )
+            );
+
+        } else {
+
+            tooltipAdder.accept(
+                    Component.literal(
+                                    "展開図ID: 未設定"
+                            )
+                            .withStyle(
+                                    ChatFormatting.DARK_GRAY
+                            )
+            );
+        }
     }
 
     /*

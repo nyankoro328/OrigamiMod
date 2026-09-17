@@ -17,6 +17,8 @@ import net.neoforged.neoforge.network.registration.HandlerThread;
 import java.io.IOException;
 import com.nyankoro.origamimod.network
         .OpenOrigamiDisplayScaleEditorPayload;
+import com.nyankoro.origamimod.network
+        .CreasePatternListPayload;
 
 
 /*
@@ -50,6 +52,12 @@ public final class OrigamiClientNetwork {
                 OrigamiVisualAssetDownloadChunkPayload.TYPE,
                 HandlerThread.NETWORK,
                 OrigamiClientNetwork::handleVisualAssetChunk
+        );
+
+        event.register(
+                CreasePatternListPayload.TYPE,
+                HandlerThread.MAIN,
+                OrigamiClientNetwork::handleCreasePatternList
         );
     }
 
@@ -200,5 +208,31 @@ public final class OrigamiClientNetwork {
                 );
             }
         }
+    }
+
+    private static void handleCreasePatternList(
+            CreasePatternListPayload payload,
+            IPayloadContext context
+    ) {
+
+        Minecraft minecraft =
+                Minecraft.getInstance();
+
+
+        if (minecraft.gui.screen()
+                instanceof CreasePatternLibraryScreen screen) {
+
+            screen.acceptList(
+                    payload
+            );
+
+            return;
+        }
+
+
+        OrigamiMod.LOGGER.warn(
+                "Received crease pattern list "
+                        + "while library screen was not open"
+        );
     }
 }

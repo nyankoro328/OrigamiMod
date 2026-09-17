@@ -15,6 +15,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Stream;
+
 
 /*
  * ユーザーが登録したCPを
@@ -54,6 +60,11 @@ public final class CreasePatternStore {
     ) {
     }
 
+    public record LibraryEntry(
+            String creasePatternId,
+            String fileName
+    ) {
+    }
 
     public static boolean exists(
             MinecraftServer server,
@@ -79,6 +90,160 @@ public final class CreasePatternStore {
         );
     }
 
+    /*
+     * 保存済みCPの一覧を取得する。
+     *
+     * CP本体は読み込まず、
+     * IDと表示名だけ返す。
+     */
+    public static List<LibraryEntry> list(
+            MinecraftServer server
+    ) throws IOException {
+
+        Path root =
+                patternRoot(
+                        server
+                );
+
+
+        if (!Files.isDirectory(
+                root
+        )) {
+
+            return List.of();
+        }
+
+
+        List<LibraryEntry> entries =
+                new ArrayList<>();
+
+
+        try (
+                Stream<Path> stream =
+                        Files.list(
+                                root
+                        )
+        ) {
+
+            for (Path directory :
+                    stream.toList()) {
+
+                if (!Files.isDirectory(
+                        directory
+                )) {
+
+                    continue;
+                }
+
+
+                String creasePatternId =
+                        directory
+                                .getFileName()
+                                .toString();
+
+
+                if (!CreasePatternId.isValidFormat(
+                        creasePatternId
+                )) {
+
+                    continue;
+                }
+
+
+                Path sourcePath =
+                        directory.resolve(
+                                SOURCE_FILE
+                        );
+
+                Path namePath =
+                        directory.resolve(
+                                NAME_FILE
+                        );
+
+
+                if (!Files.isRegularFile(
+                        sourcePath
+                )
+                        || !Files.isRegularFile(
+                        namePath
+                )) {
+
+                    continue;
+                }
+
+
+                try {
+
+                    long cpSize =
+                            Files.size(
+                                    sourcePath
+                            );
+
+
+                    if (cpSize <= 0
+                            || cpSize > MAX_CP_BYTES) {
+
+                        continue;
+                    }
+
+
+                    String fileName =
+                            Files.readString(
+                                            namePath,
+                                            StandardCharsets.UTF_8
+                                    )
+                                    .strip();
+
+
+                    if (fileName.isBlank()
+                            || fileName.length() > 128
+                            || !fileName
+                            .toLowerCase(
+                                    Locale.ROOT
+                            )
+                            .endsWith(
+                                    ".cp"
+                            )) {
+
+                        continue;
+                    }
+
+
+                    entries.add(
+                            new LibraryEntry(
+                                    creasePatternId,
+                                    fileName
+                            )
+                    );
+
+
+                } catch (IOException ignored) {
+
+                    /*
+                     * 1件壊れていても、
+                     * 他の正常なCPは一覧表示する。
+                     */
+                }
+            }
+        }
+
+
+        entries.sort(
+                Comparator
+                        .comparing(
+                                LibraryEntry::fileName,
+                                String.CASE_INSENSITIVE_ORDER
+                        )
+                        .thenComparing(
+                                LibraryEntry::creasePatternId
+                        )
+        );
+
+
+        return List.copyOf(
+                entries
+        );
+    }
 
     public static SaveResult save(
             MinecraftServer server,
