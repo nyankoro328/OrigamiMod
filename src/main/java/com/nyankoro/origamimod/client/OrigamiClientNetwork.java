@@ -19,6 +19,8 @@ import com.nyankoro.origamimod.network
         .OpenOrigamiDisplayScaleEditorPayload;
 import com.nyankoro.origamimod.network
         .CreasePatternListPayload;
+import com.nyankoro.origamimod.network
+        .CreasePatternDownloadChunkPayload;
 
 
 /*
@@ -58,6 +60,12 @@ public final class OrigamiClientNetwork {
                 CreasePatternListPayload.TYPE,
                 HandlerThread.MAIN,
                 OrigamiClientNetwork::handleCreasePatternList
+        );
+
+        event.register(
+                CreasePatternDownloadChunkPayload.TYPE,
+                HandlerThread.NETWORK,
+                OrigamiClientNetwork::handleCreasePatternChunk
         );
     }
 
@@ -233,6 +241,44 @@ public final class OrigamiClientNetwork {
         OrigamiMod.LOGGER.warn(
                 "Received crease pattern list "
                         + "while library screen was not open"
+        );
+    }
+
+    private static void handleCreasePatternChunk(
+            CreasePatternDownloadChunkPayload payload,
+            IPayloadContext context
+    ) {
+
+        CreasePatternDownloadManager.Result result =
+                CreasePatternDownloadManager.acceptChunk(
+                        payload
+                );
+
+
+        if (result.status()
+                != CreasePatternDownloadManager.Status.COMPLETE) {
+
+            return;
+        }
+
+
+        context.enqueueWork(
+                () -> {
+
+                    Minecraft minecraft =
+                            Minecraft.getInstance();
+
+
+                    if (minecraft.gui.screen()
+                            instanceof CreasePatternLibraryScreen screen) {
+
+                        screen.acceptDownloadedPattern(
+                                result.creasePatternId(),
+                                result.fileName(),
+                                result.cpData()
+                        );
+                    }
+                }
         );
     }
 }

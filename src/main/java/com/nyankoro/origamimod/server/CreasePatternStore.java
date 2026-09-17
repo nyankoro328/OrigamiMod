@@ -66,6 +66,26 @@ public final class CreasePatternStore {
     ) {
     }
 
+    public record PatternData(
+            String creasePatternId,
+            String fileName,
+            byte[] cpData
+    ) {
+
+        public PatternData {
+
+            cpData =
+                    cpData.clone();
+        }
+
+
+        @Override
+        public byte[] cpData() {
+
+            return cpData.clone();
+        }
+    }
+
     public static boolean exists(
             MinecraftServer server,
             String creasePatternId
@@ -242,6 +262,122 @@ public final class CreasePatternStore {
 
         return List.copyOf(
                 entries
+        );
+    }
+
+    /*
+     * 保存済みCP本体を読み込む。
+     *
+     * 存在しない場合はnull。
+     */
+    public static PatternData read(
+            MinecraftServer server,
+            String creasePatternId
+    ) throws IOException {
+
+        validateId(
+                creasePatternId
+        );
+
+
+        Path directory =
+                patternDirectory(
+                        server,
+                        creasePatternId
+                );
+
+
+        Path sourcePath =
+                directory.resolve(
+                        SOURCE_FILE
+                );
+
+        Path namePath =
+                directory.resolve(
+                        NAME_FILE
+                );
+
+
+        if (!Files.isRegularFile(
+                sourcePath
+        )
+                || !Files.isRegularFile(
+                namePath
+        )) {
+
+            return null;
+        }
+
+
+        long size =
+                Files.size(
+                        sourcePath
+                );
+
+
+        if (size <= 0
+                || size > MAX_CP_BYTES) {
+
+            throw new IOException(
+                    "Stored CP has invalid size"
+            );
+        }
+
+
+        byte[] cpData =
+                Files.readAllBytes(
+                        sourcePath
+                );
+
+
+        /*
+         * 保存後にファイルが壊れていないか
+         * IDを再計算して確認する。
+         */
+        String calculatedId =
+                CreasePatternId.calculate(
+                        cpData
+                );
+
+
+        if (!calculatedId.equals(
+                creasePatternId
+        )) {
+
+            throw new IOException(
+                    "Stored CP hash mismatch"
+            );
+        }
+
+
+        String fileName =
+                Files.readString(
+                                namePath,
+                                StandardCharsets.UTF_8
+                        )
+                        .strip();
+
+
+        if (fileName.isBlank()
+                || fileName.length() > 128
+                || !fileName
+                .toLowerCase(
+                        Locale.ROOT
+                )
+                .endsWith(
+                        ".cp"
+                )) {
+
+            throw new IOException(
+                    "Stored CP has invalid file name"
+            );
+        }
+
+
+        return new PatternData(
+                creasePatternId,
+                fileName,
+                cpData
         );
     }
 

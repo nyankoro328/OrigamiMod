@@ -24,7 +24,7 @@ public final class OrigamiNetwork {
          */
         PayloadRegistrar registrar =
                 event.registrar(
-                        "10"
+                        "11"
                 );
 
 
@@ -60,6 +60,11 @@ public final class OrigamiNetwork {
         registrar.playToClient(
                 CreasePatternListPayload.TYPE,
                 CreasePatternListPayload.STREAM_CODEC
+        );
+
+        registrar.playToClient(
+                CreasePatternDownloadChunkPayload.TYPE,
+                CreasePatternDownloadChunkPayload.STREAM_CODEC
         );
         /*
          * PNGチャンクの再構築・decode・hash計算は
@@ -100,6 +105,12 @@ public final class OrigamiNetwork {
                 RequestCreasePatternListPayload.TYPE,
                 RequestCreasePatternListPayload.STREAM_CODEC,
                 RequestCreasePatternListPayload::handle
+        );
+
+        uploadRegistrar.playToServer(
+                RequestCreasePatternPayload.TYPE,
+                RequestCreasePatternPayload.STREAM_CODEC,
+                RequestCreasePatternPayload::handle
         );
     }
 }

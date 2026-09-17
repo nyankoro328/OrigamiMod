@@ -15,6 +15,11 @@ import net.neoforged.neoforge.client.network
 
 import java.util.List;
 
+import com.nyankoro.origamimod.network
+        .RequestCreasePatternPayload;
+
+import net.minecraft.client.input.MouseButtonEvent;
+
 
 /*
  * 保存済みCP一覧画面。
@@ -51,6 +56,7 @@ public final class CreasePatternLibraryScreen
 
     private Button nextButton;
 
+    private String loadingPatternId;
 
     public CreasePatternLibraryScreen(
             Screen parent
@@ -252,6 +258,53 @@ public final class CreasePatternLibraryScreen
         updatePageButtons();
     }
 
+    public void acceptDownloadedPattern(
+            String creasePatternId,
+            String fileName,
+            byte[] cpData
+    ) {
+
+        if (loadingPatternId == null
+                || !loadingPatternId.equals(
+                creasePatternId
+        )) {
+
+            return;
+        }
+
+
+        loadingPatternId =
+                null;
+
+
+        if (!(parent
+                instanceof OrigamiEditorScreen editor)) {
+
+            status =
+                    "Origami Editorへ戻れません";
+
+            return;
+        }
+
+
+        if (!editor.loadCreasePattern(
+                fileName,
+                cpData
+        )) {
+
+            status =
+                    "展開図の読み込みに失敗しました";
+
+            return;
+        }
+
+
+        this.minecraft.gui
+                .setScreen(
+                        editor
+                );
+    }
+
 
     private int getMaxPage() {
 
@@ -295,6 +348,31 @@ public final class CreasePatternLibraryScreen
                 );
     }
 
+    private void selectEntry(
+            CreasePatternListPayload.Entry entry
+    ) {
+
+        if (loadingPatternId != null) {
+
+            return;
+        }
+
+
+        loadingPatternId =
+                entry.creasePatternId();
+
+
+        status =
+                "読み込み中: "
+                        + entry.fileName();
+
+
+        ClientPacketDistributor.sendToServer(
+                new RequestCreasePatternPayload(
+                        entry.creasePatternId()
+                )
+        );
+    }
 
     @Override
     public void onClose() {
@@ -452,5 +530,78 @@ public final class CreasePatternLibraryScreen
                 this.height - 52,
                 0xFFAAAAAA
         );
+    }
+
+    @Override
+    public boolean mouseClicked(
+            MouseButtonEvent event,
+            boolean doubleClick
+    ) {
+
+        if (super.mouseClicked(
+                event,
+                doubleClick
+        )) {
+
+            return true;
+        }
+
+
+        if (event.button() != 0
+                || loading
+                || loadingPatternId != null) {
+
+            return false;
+        }
+
+
+        int start =
+                page
+                        * ROWS_PER_PAGE;
+
+        int end =
+                Math.min(
+                        start
+                                + ROWS_PER_PAGE,
+                        entries.size()
+                );
+
+
+        int y =
+                70;
+
+
+        for (int i = start;
+             i < end;
+             i++) {
+
+            int top =
+                    y - 4;
+
+            int bottom =
+                    y + 17;
+
+
+            if (event.x() >= 25
+                    && event.x() <= this.width - 25
+                    && event.y() >= top
+                    && event.y() <= bottom) {
+
+                selectEntry(
+                        entries.get(
+                                i
+                        )
+                );
+
+                return true;
+            }
+
+
+            y +=
+                    30;
+        }
+
+
+        return false;
     }
 }

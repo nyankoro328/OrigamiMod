@@ -261,6 +261,11 @@ public final class OrigamiEditorScreen
                             file
                     );
 
+            loadCreasePattern(
+                    fileName,
+                    newCpData
+            );
+
 
             /*
              * 新しいプレビューを先に生成する。
@@ -617,6 +622,80 @@ public final class OrigamiEditorScreen
                     200,
                     0xFFBBBBBB
             );
+        }
+    }
+
+    public boolean loadCreasePattern(
+            String fileName,
+            byte[] newCpData
+    ) {
+
+        if (fileName == null
+                || fileName.isBlank()
+                || !fileName
+                .toLowerCase()
+                .endsWith(
+                        ".cp"
+                )
+                || newCpData == null
+                || newCpData.length == 0) {
+
+            status =
+                    "CPデータが不正です";
+
+            return false;
+        }
+
+
+        try {
+
+            CreasePatternPreviewTexture newPreview =
+                    new CreasePatternPreviewTexture(
+                            newCpData
+                    );
+
+
+            closeCpPreview();
+
+
+            cpPreview =
+                    newPreview;
+
+            cpData =
+                    newCpData.clone();
+
+            cpFileName =
+                    fileName;
+
+
+            status =
+                    "読み込み完了: "
+                            + fileName;
+
+
+            if (foldButton != null) {
+
+                foldButton.active =
+                        true;
+            }
+
+
+            return true;
+
+
+        } catch (Exception e) {
+
+            status =
+                    "CPファイルの読み込みに失敗しました";
+
+
+            OrigamiMod.LOGGER.error(
+                    "Failed to load crease pattern",
+                    e
+            );
+
+
+            return false;
         }
     }
 }
