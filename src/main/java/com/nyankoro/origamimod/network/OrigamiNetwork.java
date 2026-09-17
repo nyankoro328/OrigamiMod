@@ -24,7 +24,7 @@ public final class OrigamiNetwork {
          */
         PayloadRegistrar registrar =
                 event.registrar(
-                        "6"
+                        "7"
                 );
 
 
@@ -36,6 +36,12 @@ public final class OrigamiNetwork {
                 CreateOrigamiItemPayload.STREAM_CODEC,
                 CreateOrigamiItemPayload::handle
         );
+
+        registrar.playToServer(
+                UpdateOrigamiDisplayScalePayload.TYPE,
+                UpdateOrigamiDisplayScalePayload.STREAM_CODEC,
+                UpdateOrigamiDisplayScalePayload::handle
+        );
         /*
          * Server -> Client
          *
@@ -44,6 +50,11 @@ public final class OrigamiNetwork {
         registrar.playToClient(
                 OrigamiVisualAssetDownloadChunkPayload.TYPE,
                 OrigamiVisualAssetDownloadChunkPayload.STREAM_CODEC
+        );
+
+        registrar.playToClient(
+                OpenOrigamiDisplayScaleEditorPayload.TYPE,
+                OpenOrigamiDisplayScaleEditorPayload.STREAM_CODEC
         );
         /*
          * PNGチャンクの再構築・decode・hash計算は

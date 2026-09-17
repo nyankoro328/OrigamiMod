@@ -15,6 +15,8 @@ import net.neoforged.neoforge.client.network.event
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.HandlerThread;
 import java.io.IOException;
+import com.nyankoro.origamimod.network
+        .OpenOrigamiDisplayScaleEditorPayload;
 
 
 /*
@@ -39,9 +41,32 @@ public final class OrigamiClientNetwork {
     ) {
 
         event.register(
+                OpenOrigamiDisplayScaleEditorPayload.TYPE,
+                HandlerThread.MAIN,
+                OrigamiClientNetwork::handleOpenScaleEditor
+        );
+
+        event.register(
                 OrigamiVisualAssetDownloadChunkPayload.TYPE,
                 HandlerThread.NETWORK,
                 OrigamiClientNetwork::handleVisualAssetChunk
+        );
+    }
+
+    private static void handleOpenScaleEditor(
+            OpenOrigamiDisplayScaleEditorPayload payload,
+            IPayloadContext context
+    ) {
+
+        Minecraft minecraft =
+                Minecraft.getInstance();
+
+
+        minecraft.gui.setScreen(
+                new OrigamiDisplayScaleScreen(
+                        payload.entityId(),
+                        payload.scale()
+                )
         );
     }
 

@@ -31,6 +31,16 @@ import com.nyankoro.origamimod.OrigamiMod;
 
 import net.minecraft.network.chat.Component;
 
+import com.nyankoro.origamimod.network
+        .OpenOrigamiDisplayScaleEditorPayload;
+
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+
+import net.minecraft.world.entity.player.Player;
+
+import net.neoforged.neoforge.network.PacketDistributor;
+
 /*
  * 壁へ設置された折り紙1個を表すEntity。
  *
@@ -883,6 +893,55 @@ public final class OrigamiDisplayEntity
         );
     }
 
+    /*
+     * 壁掛け折り紙を右クリックすると、
+     * 大きさ編集画面を開く。
+     */
+    @Override
+    public InteractionResult interact(
+            Player player,
+            InteractionHand hand,
+            Vec3 location
+    ) {
+
+        OrigamiMod.LOGGER.info(
+                "Origami display interacted: entityId={}, player={}",
+                this.getId(),
+                player.getName().getString()
+        );
+
+        /*
+         * Client側では画面を直接開かない。
+         *
+         * ServerからPayloadを送ることで、
+         * 対象Entity IDと現在のscaleを
+         * 正式な値としてClientへ渡す。
+         */
+        if (player instanceof ServerPlayer serverPlayer) {
+
+            /*
+             * 念のため8 block以内だけ許可。
+             */
+            if (serverPlayer.distanceToSqr(
+                    this
+            ) > 64.0) {
+
+                return InteractionResult.FAIL;
+            }
+
+
+            PacketDistributor.sendToPlayer(
+                    serverPlayer,
+                    new OpenOrigamiDisplayScaleEditorPayload(
+                            this.getId(),
+                            this.getDisplayScale()
+                    )
+            );
+        }
+
+
+        return InteractionResult.SUCCESS;
+    }
 
     /*
      * 将来、右クリックして

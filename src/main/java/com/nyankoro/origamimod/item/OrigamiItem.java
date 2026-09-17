@@ -38,7 +38,7 @@ public final class OrigamiItem
         extends Item {
 
     private static final double WALL_RENDER_OFFSET =
-            0.01;
+            0.04;
 
     public OrigamiItem(
             Properties properties
