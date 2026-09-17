@@ -931,6 +931,7 @@ public final class OrigamiSettingsScreen
         ClientPacketDistributor.sendToServer(
                 new CreateOrigamiItemPayload(
                         cpFileName,
+                        creasePatternId,
                         exportResult.visualAssetId(),
                         useType,
                         appearance.frontColor(),

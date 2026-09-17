@@ -17,6 +17,10 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.Locale;
 
+import com.nyankoro.origamimod.origami.CreasePatternId;
+
+import java.util.UUID;
+
 
 /*
  * Client -> Server
@@ -28,6 +32,7 @@ import java.util.Locale;
  */
 public record CreateOrigamiItemPayload(
         String cpFileName,
+        String creasePatternId,
         String visualAssetId,
         OrigamiUseType useType,
         int frontColor,
@@ -46,6 +51,9 @@ public record CreateOrigamiItemPayload(
 
 
     public static final int MAX_ASSET_ID_LENGTH =
+            64;
+
+    public static final int MAX_PATTERN_ID_LENGTH =
             64;
 
 
@@ -81,6 +89,9 @@ public record CreateOrigamiItemPayload(
                 payload.cpFileName()
         );
 
+        buffer.writeUtf(
+                payload.creasePatternId()
+        );
 
         buffer.writeUtf(
                 payload.visualAssetId()
@@ -123,6 +134,11 @@ public record CreateOrigamiItemPayload(
                         MAX_FILE_NAME_LENGTH
                 );
 
+        String creasePatternId =
+                buffer.readUtf(
+                        MAX_PATTERN_ID_LENGTH
+                );
+
 
         String visualAssetId =
                 buffer.readUtf(
@@ -154,6 +170,7 @@ public record CreateOrigamiItemPayload(
 
         return new CreateOrigamiItemPayload(
                 cpFileName,
+                creasePatternId,
                 visualAssetId,
                 useType,
                 frontColor,
@@ -199,6 +216,16 @@ public record CreateOrigamiItemPayload(
             return;
         }
 
+        /*
+         * 個々の折り紙作品を識別するID。
+         *
+         * 同じCP・同じ見た目から作っても、
+         * 別々にアイテム化した作品には
+         * 別のorigamiIdを発行する。
+         */
+        String origamiId =
+                UUID.randomUUID()
+                        .toString();
 
         ItemStack stack =
                 new ItemStack(
@@ -217,7 +244,8 @@ public record CreateOrigamiItemPayload(
         stack.set(
                 OrigamiMod.ORIGAMI_DATA.get(),
                 new OrigamiItemData(
-                        OrigamiItemData.UNASSIGNED,
+                        origamiId,
+                        payload.creasePatternId(),
                         payload.visualAssetId(),
                         payload.useType()
                                 .name(),
@@ -297,6 +325,13 @@ public record CreateOrigamiItemPayload(
             return false;
         }
 
+        if (!CreasePatternId
+                .isValidFormat(
+                        payload.creasePatternId()
+                )) {
+
+            return false;
+        }
 
         if (!OrigamiVisualAssetId
                 .isValidFormat(

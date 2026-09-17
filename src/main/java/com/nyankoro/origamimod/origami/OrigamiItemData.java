@@ -24,6 +24,7 @@ import java.util.Objects;
  */
 public record OrigamiItemData(
         String origamiId,
+        String creasePatternId,
         String visualAssetId,
         String useType,
         int frontColor,
@@ -42,6 +43,7 @@ public record OrigamiItemData(
      */
     public static final OrigamiItemData DEFAULT =
             new OrigamiItemData(
+                    UNASSIGNED,
                     UNASSIGNED,
                     UNASSIGNED,
                     "WALL",
@@ -70,6 +72,15 @@ public record OrigamiItemData(
                                                     )
                                                     .forGetter(
                                                             OrigamiItemData::origamiId
+                                                    ),
+
+                                            Codec.STRING
+                                                    .optionalFieldOf(
+                                                            "crease_pattern_id",
+                                                            UNASSIGNED
+                                                    )
+                                                    .forGetter(
+                                                            OrigamiItemData::creasePatternId
                                                     ),
 
                                             Codec.STRING
@@ -153,6 +164,10 @@ public record OrigamiItemData(
                         );
 
                         buffer.writeUtf(
+                                data.creasePatternId()
+                        );
+
+                        buffer.writeUtf(
                                 data.visualAssetId()
                         );
 
@@ -183,9 +198,10 @@ public record OrigamiItemData(
 
                     buffer ->
                             new OrigamiItemData(
-                                    buffer.readUtf(),
-                                    buffer.readUtf(),
-                                    buffer.readUtf(),
+                                    buffer.readUtf(),     // origamiId
+                                    buffer.readUtf(),     // creasePatternId
+                                    buffer.readUtf(),     // visualAssetId
+                                    buffer.readUtf(),     // useType
                                     buffer.readInt(),
                                     buffer.readInt(),
                                     buffer.readInt(),
@@ -202,6 +218,10 @@ public record OrigamiItemData(
         );
 
         Objects.requireNonNull(
+                creasePatternId
+        );
+
+        Objects.requireNonNull(
                 visualAssetId
         );
 
@@ -213,6 +233,12 @@ public record OrigamiItemData(
         if (origamiId.isBlank()) {
 
             origamiId =
+                    UNASSIGNED;
+        }
+
+        if (creasePatternId.isBlank()) {
+
+            creasePatternId =
                     UNASSIGNED;
         }
 
@@ -235,6 +261,22 @@ public record OrigamiItemData(
                 normalizeAngle(
                         angle
                 );
+    }
+
+    public boolean hasCreasePattern() {
+
+        return CreasePatternId
+                .isValidFormat(
+                        creasePatternId
+                );
+    }
+
+
+    public boolean hasOrigamiId() {
+
+        return !UNASSIGNED.equals(
+                origamiId
+        );
     }
 
 
