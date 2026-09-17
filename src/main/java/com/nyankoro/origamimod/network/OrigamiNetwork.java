@@ -24,7 +24,7 @@ public final class OrigamiNetwork {
          */
         PayloadRegistrar registrar =
                 event.registrar(
-                        "7"
+                        "8"
                 );
 
 
@@ -71,6 +71,12 @@ public final class OrigamiNetwork {
                 UploadOrigamiVisualAssetChunkPayload.TYPE,
                 UploadOrigamiVisualAssetChunkPayload.STREAM_CODEC,
                 UploadOrigamiVisualAssetChunkPayload::handle
+        );
+
+        uploadRegistrar.playToServer(
+                UploadCreasePatternChunkPayload.TYPE,
+                UploadCreasePatternChunkPayload.STREAM_CODEC,
+                UploadCreasePatternChunkPayload::handle
         );
 
         /*

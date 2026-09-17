@@ -871,6 +871,41 @@ public final class OrigamiSettingsScreen
             return;
         }
 
+        final String creasePatternId;
+
+
+        try {
+
+            creasePatternId =
+                    CreasePatternUploader.upload(
+                            cpFileName,
+                            cpData
+                    );
+
+
+            OrigamiMod.LOGGER.info(
+                    "Crease pattern prepared: "
+                            + "id={}, file={}",
+                    creasePatternId,
+                    cpFileName
+            );
+
+
+        } catch (IllegalArgumentException e) {
+
+            OrigamiMod.LOGGER.error(
+                    "Failed to upload crease pattern",
+                    e
+            );
+
+
+            showCreateItemError(
+                    "展開図の保存に失敗しました"
+            );
+
+            return;
+        }
+
         try {
 
             OrigamiVisualAssetUploader.upload(
